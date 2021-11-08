@@ -1,0 +1,28 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/home/rui/Programs/jr_rpc/client/main.cpp
+src/rpc_client.hpp
+/home/rui/Programs/jr_rpc/client/src/rpc_client.hpp
+
+/home/rui/Programs/jr_rpc/client/src/rpc_client.hpp
+string
+-
+iostream
+-
+nlohmann/json.hpp
+-
+netdb.h
+-
+unistd.h
+-
+arpa/inet.h
+-
+sys/socket.h
+-
+

@@ -1,0 +1,3 @@
+/home/rui/Programs/jr_rpc/client/CMakeFiles/rebuild_cache.dir
+/home/rui/Programs/jr_rpc/client/CMakeFiles/edit_cache.dir
+/home/rui/Programs/jr_rpc/client/CMakeFiles/jr_rpc_client.dir
