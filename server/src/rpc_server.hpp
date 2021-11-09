@@ -1,31 +1,33 @@
 #ifndef RPC_SERVER_H
 #define RPC_SERVER_H
 
-#include<string>
-#include<memory>
-#include<exception>
-//#include"log.hpp"
-#include"timer.hpp"
-#include"thread_pool.hpp"
-#include<nlohmann/json.hpp>
+#include <string>
+#include <memory>
+#include <exception>
+#include "log.hpp"
+#include "timer.hpp"
+#include "thread_pool.hpp"
+#include <nlohmann/json.hpp>
 
 extern "C" {
-    #include<fcntl.h>
-    #include<unistd.h>
-    #include<signal.h>
-    #include<errno.h>
-    #include<sys/time.h>
-    #include<sys/socket.h>
-    #include<arpa/inet.h>
-    #include<sys/epoll.h>
+    #include <fcntl.h>
+    #include <unistd.h>
+    #include <signal.h>
+    #include <errno.h>
+    #include <sys/time.h>
+    #include <sys/socket.h>
+    #include <arpa/inet.h>
+    #include <sys/epoll.h>
 }
 
 namespace tinyRPC {
     int _uesfd[2]; // file descriptors for unified event source
 
-    void _ues_handler(int sig);
+    void _ues_handler(int);
 
-    void disconnect(int epfd, int client);
+    void _timeout_default_handler(int, int);
+
+    std::string _get_ip_from_fd(int);
 
     class invoker;
 
@@ -47,6 +49,8 @@ namespace tinyRPC {
         std::map<std::string, function_json> _func_list;
         /* Thread pool */
         tinyRPC::thread_pool _pool;
+        /* Logger */
+        tinyRPC::logger* _logger;
 
     private:
         /* Init network connection */
@@ -84,14 +88,19 @@ namespace tinyRPC {
     /* ===================== Implemention ====================*/
     void _ues_handler(int sig) {
         int s = sig;
-        if(-1 == write(tinyRPC::_uesfd[1], reinterpret_cast<char*>(&s), 1)) {
-//            std::cout << strerror(errno) << std::endl;
-        }
+        write(tinyRPC::_uesfd[1], reinterpret_cast<char*>(&s), 1);
     }
 
-    void disconnect(int epfd, int client) {
+    void _timeout_default_handler(int epfd, int client) {
         epoll_ctl(epfd, EPOLL_CTL_DEL, client, nullptr);
         close(client);
+    }
+
+    std::string _get_ip_from_fd(int fd) {
+        sockaddr_in addr;
+        socklen_t addr_size = sizeof(sockaddr_in);
+        int res = getpeername(fd, reinterpret_cast<sockaddr*>(&addr), &addr_size);
+        return res > 0 ? inet_ntoa(addr.sin_addr) : "";
     }
 
     invoker::invoker(int client, tinyRPC::server* s)
@@ -103,15 +112,15 @@ namespace tinyRPC {
         // Receive binary data
         char buffer[8092];
         bzero(buffer, sizeof(buffer));
-        switch (recv(clientfd, buffer, 8092, 0)) {
-            case -1:
-//                std::cout << strerror(errno) << std::endl;
-                return;
-            case 0:
-                return;
+        if(read(clientfd, buffer, 8092) <= 0) {
+            // Ignore "Interrupted system call", reason see README.md
+            if(errno != EINTR)
+                LOG_WARNING(_server->_logger,
+                            std::this_thread::get_id(), std::string("Read error: ") + strerror(errno));
+            return;
         }
         std::string str(buffer);
-        std::cout << "Recv str: " << str << std::endl;
+        LOG_NOTICE(_server->_logger, std::this_thread::get_id(), "Recv str: " + str);
         // Server stub deserialization
         try {
             server::json json_str = server::json::parse(str);
@@ -135,16 +144,22 @@ namespace tinyRPC {
             }
             // Send it to client
             std::string ret_binary = ret_msg.dump();
-            if(-1 == send(clientfd, ret_binary.c_str(), ret_binary.length(), 0)) {
-    //            std::cout << strerror(errno) << std::endl;
+            if(-1 == write(clientfd, ret_binary.c_str(), ret_binary.length())) {
+                  // Ignore "Interrupted system call", reason see README.md
+                  if(errno != EINTR)
+                    LOG_WARNING(_server->_logger, std::this_thread::get_id(), std::string("Send error: ") + strerror(errno));
+            } else {
+                LOG_NOTICE(_server->_logger, std::this_thread::get_id(), std::string("Send str: ") + ret_binary);
             }
-        } catch (...) {
-            std::cout << "some error" << std::endl;
+        } catch (const std::exception& e) {
+            LOG_WARNING(_server->_logger, std::this_thread::get_id(), std::string("JSON parser error: ") + e.what());
         }
     }
 
     server::server(uint port, uint max_pool_size, uint max_task_num)
-        : _max_client_num(max_task_num), _pool(max_pool_size, max_task_num) {
+        : _max_client_num(max_task_num),
+          _pool(max_pool_size, max_task_num),
+          _logger(tinyRPC::logger::create_logger())  {
         this->_init(port, max_task_num);
     }
 
@@ -152,14 +167,15 @@ namespace tinyRPC {
         close(tinyRPC::_uesfd[0]);
         close(tinyRPC::_uesfd[1]);
         close(_epfd);
+        delete _logger;
     }
 
     void server::_init(uint port, uint max_task_num) {
         // Create server socket file description
         _serverfd = socket(AF_INET, SOCK_STREAM, 0);
         if(-1 == _serverfd) {
-//            std::cout << strerror(errno) << std::endl;
-            return;
+            LOG_FATAL(_logger, std::this_thread::get_id(), std::string("Socket error: ") + strerror(errno));
+            exit(1);
         }
         // Bind ip address and port
         sockaddr_in addr;
@@ -168,18 +184,18 @@ namespace tinyRPC {
         addr.sin_port = htons(port);
         addr.sin_addr.s_addr = htonl(INADDR_ANY);
         if(-1 == bind(_serverfd, reinterpret_cast<sockaddr*>(&addr), sizeof(struct sockaddr_in))) {
-//            std::cout << strerror(errno) << std::endl;
-            return;
+            LOG_FATAL(_logger, std::this_thread::get_id(), std::string("Bind error: ") + strerror(errno));
+            exit(1);
         }
         // Listen target port
         if(-1 == listen(_serverfd, max_task_num)) {
-//            std::cout << strerror(errno) << std::endl;
+            LOG_FATAL(_logger, std::this_thread::get_id(), std::string("Listen error: ") + strerror(errno));
             exit(1);
         }
         // Unified event source set
         if(-1 == pipe(tinyRPC::_uesfd)) {
-//            std::cout << strerror(errno) << std::endl;
-            return;
+            LOG_FATAL(_logger, std::this_thread::get_id(), std::string("Pipe error: ") + strerror(errno));
+            exit(1);
         }
         // Set ues fd write non-blocking
         int flag = fcntl(tinyRPC::_uesfd[1], F_GETFL);
@@ -197,23 +213,25 @@ namespace tinyRPC {
         _ee.events = EPOLLIN;
         _ee.data.fd = _serverfd;
         if(-1 == epoll_ctl(_epfd, EPOLL_CTL_ADD, _serverfd, &_ee)) {
-//            std::cout << strerror(errno) << std::endl;
-            return;
+            LOG_FATAL(_logger, std::this_thread::get_id(), std::string("Epoll server fd error: ") + strerror(errno));
+            exit(1);
         }
         _ee.events = EPOLLIN;
         _ee.data.fd  = tinyRPC::_uesfd[0];
         // Register ues read pipe
         if(-1 == epoll_ctl(_epfd, EPOLL_CTL_ADD, tinyRPC::_uesfd[0], &_ee)) {
-//            std::cout << strerror(errno) << std::endl;
-            return;
+            LOG_FATAL(_logger, std::this_thread::get_id(), std::string("Epoll signal fd error: ") + strerror(errno));
+            exit(1);
         }
+        LOG_NOTICE(_logger, std::this_thread::get_id(), "Server started");
     }
 
     void server::_dispatch(uint timeout_period_sec, timer_container& tc, bool& is_stop,
                            bool& have_timeout, timer* timers, epoll_event* events) {
         int event_cnt = epoll_wait(_epfd, events, _max_client_num, -1);
         if(-1 == event_cnt) {
-//            std::cout << strerror(errno) << std::endl;
+            if(errno != EINTR)
+                LOG_WARNING(_logger, std::this_thread::get_id(), std::string("Epoll signal fd error: ") + strerror(errno));
             return;
         }
         for(int i = 0; i < event_cnt; ++i) {
@@ -222,58 +240,61 @@ namespace tinyRPC {
             if(_serverfd == curfd) {
                 // Accept connection
                 int client = accept(_serverfd, nullptr, nullptr);
-                std::cout << "Connection accepted" << std::endl;
                 if(-1 == client) {
-                    std::cout << strerror(errno) << std::endl;
-                    return;
+                    // Ignore "Interrupted system call", reason see README.md
+                    if(errno != EINTR)
+                        LOG_WARNING(_logger, std::this_thread::get_id(), std::string("Accept connection error: ") + strerror(errno));
+                    continue;
                 }
                 // Register client into epoll
                 _ee.events = EPOLLIN;
                 _ee.data.fd = client;
-                epoll_ctl(_epfd, EPOLL_CTL_ADD, client, &_ee);
-                std::cout << "Client register epoll" << std::endl;
+                if(-1 == epoll_ctl(_epfd, EPOLL_CTL_ADD, client, &_ee)) {
+                    LOG_WARNING(_logger, std::this_thread::get_id(), std::string("Client epoll error, client fd: ") + strerror(errno));
+                    continue;
+                }
                 // Timer init
                 timer t;
                 t.fd = client;
                 t.epfd = _epfd;
                 t.run_time = tinyRPC::set_timeout(timeout_period_sec);
-                t.timeout_handler = disconnect;
+                t.timeout_handler = _timeout_default_handler;
                 // Add new timer
                 tc.add_timer(t);
                 // Bind timer and fd
                 timers[client] = t;
-                std::cout << "Connection timer init" << std::endl;
-            }
-            // Handle signals
-            else if(tinyRPC::_uesfd[0] == curfd) {
-                char sig[1024];
-                auto num = read(tinyRPC::_uesfd[0], sig, sizeof(sig));
+                LOG_NOTICE(_logger, std::this_thread::get_id(), "Connection accepted, client fd: " + std::to_string(client));
+            } else if(tinyRPC::_uesfd[0] == curfd) {
+                // Handle signals
+                char sig[32];
+                bzero(sig, sizeof(sig));
+                int num = read(tinyRPC::_uesfd[0], sig, sizeof(sig));
                 if(num <= 0)
                     continue;
                 for(auto j = 0; j < num; ++j) {
                     switch(sig[j]) {
                         case SIGALRM:
                             have_timeout = true;    // timeout task
+                            LOG_WARNING(_logger, std::this_thread::get_id(),
+                                        "Client connection timeout, client ip: " + tinyRPC::_get_ip_from_fd(curfd));
                             break;
                         case SIGTERM:
                         case SIGINT:    // Stop server
                             is_stop = true;
+                            LOG_NOTICE(_logger, std::this_thread::get_id(), "Server interrupt by system signal");
                             break;
                         case SIGPIPE:
                             break;
                     }
                 }
-            }
-            // Handle requests task
-            else {
-//                std::cout << "Pool add" << std::endl;
+            } else {
+                // Handle requests task
                 if(!_pool.add_task(std::make_shared<invoker>(curfd, this))) {
 //                    std::cout << "thread pool is full" << std::endl;
                 }
             }
-        }
-        // Handle timeout task
-        if(have_timeout) {
+        } if(have_timeout) {
+            // Handle timeout task
             tc.tick();
             alarm(timeout_period_sec);
             have_timeout = false;
@@ -293,7 +314,7 @@ namespace tinyRPC {
         this->_func_list[name] = this->register_procedure_helper(fun, std::index_sequence_for<Args...>{});
     }
 
-    void server::run(uint timeout_period_sec = 5) {
+    void server::run(uint timeout_period_sec = 300) {
         timer_container tc;
         bool is_stop = false;
         bool have_timeout = false;

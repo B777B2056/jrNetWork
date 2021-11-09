@@ -1,1 +1,0 @@
-/usr/bin/c++     CMakeFiles/jr_rpc_client.dir/main.cpp.o  -o jr_rpc_client 

@@ -1,18 +1,17 @@
 #ifndef RPC_CLIENT_HPP
 #define RPC_CLIENT_HPP
 
-#include<string>
-#include<iostream>
-#include<nlohmann/json.hpp>
+#include <string>
+#include <iostream>
+#include <nlohmann/json.hpp>
 
 extern "C" {
-    #include<errno.h>
-    #include<netdb.h>
-    #include<unistd.h>
-    #include<arpa/inet.h>
-    #include<sys/socket.h>
+    #include <errno.h>
+    #include <netdb.h>
+    #include <unistd.h>
+    #include <arpa/inet.h>
+    #include <sys/socket.h>
 }
-
 
 namespace tinyRPC {
     class client {
@@ -121,6 +120,7 @@ namespace tinyRPC {
             std::cout << strerror(errno) << std::endl;
         }
         std::string str(buffer);
+        std::cout << str << std::endl;
         // Unpack return value
         return this->_unpack<Ret>(client::json::parse(str));
     }

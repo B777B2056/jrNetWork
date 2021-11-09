@@ -1,30 +1,34 @@
 #include "log.hpp"
 
 namespace tinyRPC {
-    log::log(const std::string& p, const std::string& n)
-        : _path(p), _filename(n) {
+    logger::logger(const std::string& f) : _filename(f) {
+        _fatal.open(this->_filename + "_Fatal.log", std::ios::out | std::ios::app);
+        _warning.open(this->_filename + "_Warning.log", std::ios::out | std::ios::app);
+        _notice.open(this->_filename + "_Notice.log", std::ios::out | std::ios::app);
+    }
+
+    logger::~logger() {
+        _fatal.close();
+        _warning.close();
+        _notice.close();
+    }
+
+    void logger::_split_log() {
 
     }
 
-    log::~log() {
-
-    }
-
-    std::string log::_get_current_time() const {
-        char date[60];
-        time_t date_t = time(nullptr);
-		strftime(date, 60, "%a, %d %b %Y %T", gmtime(&date_t));
+    std::string logger::_get_current_time() const {
+        auto tt = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+        tm* ptm = localtime(&tt);
+        char date[60] = {0};
+        sprintf(date, "%d-%02d-%02d %02d:%02d:%02d",
+                (int)ptm->tm_year + 1900, (int)ptm->tm_mon + 1, (int)ptm->tm_mday,
+                (int)ptm->tm_hour, (int)ptm->tm_min, (int)ptm->tm_sec);
         return std::string(date);
     }
 
-    void log::out(const char* dev, const char* err, int level) {
-        std::string s = (level == 1 ? "Fatal error" : "Warning");
-        std::fstream f(this->_path+this->_filename);
-        f << this->_get_current_time() << " " 
-          << s << " "
-          << dev << " " 
-          << err 
-          << std::endl;
+    logger* logger::create_logger(const std::string& f) {
+        return new logger(f);
     }
 }
 
