@@ -8,42 +8,45 @@
 #include <sstream>
 
 /* Print log with level */
-#define LOG_FATAL(logger, tid, msg) \
+#define LOG_FATAL(logger, msg) \
         {   \
             std::stringstream ss;   \
             ss << "[FATAL]"   \
-               << " " << "thread id " << tid    \
+               << "[" << logger->_get_current_time() << "]" \
+               << "[pid]" << getpid() \
+               << "[tid]" << std::this_thread::get_id()    \
                << ": " << msg   \
                << ", at file " << __FILE__  \
                << ", line " << __LINE__ \
-               << ", function " << __func__ \
-               << ", date time " << logger->_get_current_time();    \
+               << ", function " << __func__;    \
             logger->_fatal << ss.str() << std::endl;    \
         }
 
-#define LOG_WARNING(logger, tid, msg) \
+#define LOG_WARNING(logger, msg) \
         {   \
             std::stringstream ss;   \
             ss << "[WARNING]"   \
-               << " " << "thread id " << tid    \
+               << "[" <<logger->_get_current_time() << "]" \
+               << "[pid]" << getpid() \
+               << "[tid]" << std::this_thread::get_id()    \
                << ": " << msg   \
                << ", at file " << __FILE__  \
                << ", line " << __LINE__ \
-               << ", function " << __func__ \
-               << ", date time " << logger->_get_current_time();    \
+               << ", function " << __func__;    \
             logger->_warning << ss.str() << std::endl;    \
         }
 
-#define LOG_NOTICE(logger, tid, msg) \
+#define LOG_NOTICE(logger, msg) \
         {   \
             std::stringstream ss;   \
             ss << "[NOTICE]"   \
-               << " " << "thread id " << tid    \
+               << "[" <<logger->_get_current_time() << "]" \
+               << "[pid]" << getpid() \
+               << "[tid]" << std::this_thread::get_id()    \
                << ": " << msg   \
                << ", at file " << __FILE__  \
                << ", line " << __LINE__ \
-               << ", function " << __func__ \
-               << ", date time " << logger->_get_current_time();    \
+               << ", function " << __func__;    \
             logger->_notice << ss.str() << std::endl;    \
         }
 

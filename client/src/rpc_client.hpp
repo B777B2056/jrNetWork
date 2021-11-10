@@ -110,17 +110,17 @@ namespace tinyRPC {
         // Send it to server
         std::string binary = packet.dump();
         std::cout << "Sended json format data: " << binary << std::endl;
-        if(-1 == write(_serverfd, binary.c_str(), binary.length())) {
+        if(-1 == send(_serverfd, binary.c_str(), binary.length(), 0)) {
             std::cout << strerror(errno) << std::endl;
         }
         // Receive return value from server
         char buffer[8092];
         bzero(buffer, sizeof(buffer));
-        if(-1 == read(_serverfd, buffer, 8092)) {
+        int recv_size = recv(_serverfd, buffer, 8092, 0);
+        if(-1 == recv_size) {
             std::cout << strerror(errno) << std::endl;
         }
         std::string str(buffer);
-        std::cout << str << std::endl;
         // Unpack return value
         return this->_unpack<Ret>(client::json::parse(str));
     }
