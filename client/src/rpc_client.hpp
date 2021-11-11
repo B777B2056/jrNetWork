@@ -61,13 +61,13 @@ namespace tinyRPC {
         addr.sin_family = AF_INET;		// protocol
         addr.sin_addr.s_addr = inet_addr(inet_ntoa(*(in_addr *)(hpk->h_addr_list[0])));		// service IP
         addr.sin_port = htons(port);		// target process port number
-        std::cout << "HOST IP is " << inet_ntoa(addr.sin_addr) << std::endl;
+//        std::cout << "HOST IP is " << inet_ntoa(addr.sin_addr) << std::endl;
         // connect
         if(-1 == connect(_serverfd, reinterpret_cast<sockaddr*>(&addr), sizeof(addr))) {
             std::cout << strerror(errno) << std::endl;
             return;
         }
-        std::cout << "TCP connection creates successed." << std::endl;
+//        std::cout << "TCP connection creates successed." << std::endl;
     }
 
     client::~client() {
@@ -108,19 +108,23 @@ namespace tinyRPC {
         // Pack target method's infomation
         client::json packet = this->_pack(name, std::forward<Args>(args)...);
         // Send it to server
-        std::string binary = packet.dump();
-        std::cout << "Sended json format data: " << binary << std::endl;
+        std::string binary = packet.dump() + "#";
         if(-1 == send(_serverfd, binary.c_str(), binary.length(), 0)) {
             std::cout << strerror(errno) << std::endl;
         }
         // Receive return value from server
-        char buffer[8092];
-        bzero(buffer, sizeof(buffer));
-        int recv_size = recv(_serverfd, buffer, 8092, 0);
-        if(-1 == recv_size) {
-            std::cout << strerror(errno) << std::endl;
+        char buffer;
+        std::string str = "";
+        while(true) {
+            if(-1 == recv(_serverfd, &buffer, 1, 0)) {
+                std::cout << strerror(errno) << std::endl;
+                exit(1);
+            }
+            if(buffer == '#')
+                break;
+            str += buffer;
         }
-        std::string str(buffer);
+        std::cout  << str << std::endl;
         // Unpack return value
         return this->_unpack<Ret>(client::json::parse(str));
     }

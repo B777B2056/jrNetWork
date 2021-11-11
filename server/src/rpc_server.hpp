@@ -21,7 +21,11 @@ extern "C" {
 }
 
 namespace tinyRPC {
+    using json = nlohmann::json;
+
     static int _uesfd[2]; // file descriptors for unified event source
+
+    static tinyRPC::logger _logger;    /* Logger */
 
     void _ues_handler(int);
 
@@ -29,13 +33,8 @@ namespace tinyRPC {
 
     std::string _get_ip_from_fd(int);
 
-    class invoker;
-
     class server {
-    friend class invoker;
-
     private:
-        using json = nlohmann::json;
         using function_json = std::function<json(const json&)>;
         /* Max client num */
         uint _max_client_num;
@@ -49,8 +48,27 @@ namespace tinyRPC {
         std::map<std::string, function_json> _func_list;
         /* Thread pool */
         tinyRPC::thread_pool _pool;
-        /* Logger */
-        tinyRPC::logger* _logger;
+        /* Call method */
+        class invoker : public tinyRPC::task_base {
+        private:
+            int _client;
+            /* Server */
+            tinyRPC::server* _server;
+
+        private:
+            /* Receive string */
+            std::string _receive();
+            /* Serialization and build a return packet */
+            std::string _serialization(const std::string&, json);
+            /* Deserialization a received string */
+            std::pair<std::string, json> _deserialization(const std::string&);
+
+        public:
+            invoker(int, tinyRPC::server*);
+            virtual void start() override;
+        };
+
+        friend class invoker;
 
     private:
         /* Init network connection */
@@ -70,23 +88,14 @@ namespace tinyRPC {
         void register_procedure(const std::string&, std::function<Ret(Args...)>);
 
         void run(uint);
-    };
-
-    /* Call method */
-    class invoker : public task_base {
-    private:
-        int clientfd;
-        /* Recv str */
-        std::string recv_str;
-        /* Server */
-        tinyRPC::server* _server;
 
     public:
-        invoker(int, tinyRPC::server*);
-        int receive();
-        virtual void start() override;
+        /* Not allowed Operation */
+        server(const server&) = delete;
+        server(server&&) = delete;
+        server& operator=(const server&) = delete;
+        server& operator=(server&&) = delete;
     };
-
 
     /* ===================== Implemention ====================*/
     void _ues_handler(int sig) {
@@ -106,69 +115,85 @@ namespace tinyRPC {
         return res > 0 ? inet_ntoa(addr.sin_addr) : "";
     }
 
-    invoker::invoker(int client, tinyRPC::server* s)
-        : clientfd(client), recv_str(""), _server(s) {
+    server::invoker::invoker(int client, tinyRPC::server* s)
+        : _client(client), _server(s) {
 
     }
 
     // Receive binary data
-    int invoker::receive() {
-        char buffer[1024];
-        bzero(buffer, sizeof(buffer));
-        int recv_size = recv(clientfd, buffer, sizeof (buffer), 0);
-        if(recv_size < 0) {
-            // Ignore "Interrupted system call", reason see README.md
-            if(errno != EINTR)
-                LOG_WARNING(_server->_logger, std::string("Read error: ") + strerror(errno));
-        } else if(recv_size == 0) {
-
-        } else {
-            recv_str.append(buffer);
+    std::string server::invoker::_receive() {
+        char buffer;
+        int recv_size;
+        std::string str;
+        while(true) {
+            recv_size = recv(_client, &buffer, 1, 0);
+            if(buffer == '#')
+                break;
+            if(-1 == recv_size) {
+                // Ignore "Interrupted system call", reason see README.md
+                if(errno != EINTR)
+                    LOG_WARNING(_logger, std::string("Read error: ") + strerror(errno));
+                break;
+            } else if(0 == recv_size) {
+                break;
+            } else {
+                str += buffer;
+            }
         }
-        return recv_size;
+        return str;
     }
 
-    void invoker::start() {
-        LOG_NOTICE(_server->_logger, "Recv str: " + recv_str);
+    std::string server::invoker::_serialization(const std::string& fun_name, json parameters) {
+        // Invoke target method
+        json ret_msg = json::object();
+        if(_server->_func_list.find(fun_name) == _server->_func_list.end()) {
+            // NOT FOUND TARGET FUNCTION
+            ret_msg["error_flag"] = true;
+            ret_msg["error_msg"] = "Target method NOT found";
+        } else {
+            try {
+                // Call target method, and serialize target method's return value
+                ret_msg["error_flag"] = false;
+                ret_msg["return_value"] = _server->_func_list[fun_name](parameters);
+            } catch (const std::exception& e) {
+                ret_msg["error_flag"] = true;
+                ret_msg["error_msg"] = e.what();
+            }
+        }
+        return ret_msg.dump();
+    }
+
+    std::pair<std::string, json> server::invoker::_deserialization(const std::string& recv_str) {
+        json json_str = json::parse(recv_str);
+        return std::make_pair(json_str.at("name").get<std::string>(), json_str.at("parameters"));
+    }
+
+    void server::invoker::start() {
+        std::string recv_str = this->_receive();
+        if(0 == recv_str.length()) {
+            return;
+        }
+        LOG_NOTICE(_logger, "Recv str: " + recv_str);
         // Server stub deserialization
         try {
-            server::json json_str = server::json::parse(recv_str);
-            std::string fun_name = json_str.at("name").get<std::string>();
-            server::json parameters = json_str.at("parameters");
-            // Invoke target method
-            server::json ret_msg;
-            if(_server->_func_list.find(fun_name) == _server->_func_list.end()) {
-                // NOT FOUND TARGET FUNCTION
-                ret_msg["error_flag"] = true;
-                ret_msg["error_msg"] = "Target method NOT found";
-            } else {
-                try {
-                    // Call target method, and serialize target method's return value
-                    ret_msg["error_flag"] = false;
-                    ret_msg["return_value"] = _server->_func_list[fun_name](parameters);
-                } catch (const std::exception& e) {
-                    ret_msg["error_flag"] = true;
-                    ret_msg["error_msg"] = e.what();
-                }
-            }
+            auto packet = this->_deserialization(recv_str);
+            std::string ret = this->_serialization(packet.first, packet.second) + "#";
             // Send it to client
-            std::string ret_binary = ret_msg.dump();
-            if(-1 == send(clientfd, ret_binary.c_str(), ret_binary.length(), 0)) {
+            if(-1 == send(_client, ret.c_str(), ret.length(), 0)) {
                   // Ignore "Interrupted system call", reason see README.md
                   if(errno != EINTR)
-                    LOG_WARNING(_server->_logger, std::string("Send error: ") + strerror(errno));
+                    LOG_WARNING(_logger, std::string("Send error: ") + strerror(errno));
             } else {
-                LOG_NOTICE(_server->_logger, std::string("Send str: ") + ret_binary);
+                LOG_NOTICE(_logger, std::string("Send str: ") + ret);
             }
         } catch (const std::exception& e) {
-            LOG_WARNING(_server->_logger, std::string("JSON parser error: ") + e.what());
+            LOG_WARNING(_logger, std::string("JSON parser error: ") + e.what());
         }
     }
 
     server::server(uint port, uint max_pool_size, uint max_task_num)
         : _max_client_num(max_task_num),
-          _pool(max_pool_size, max_task_num),
-          _logger(tinyRPC::logger::create_logger())  {
+          _pool(max_pool_size, max_task_num) {
         this->_init(port, max_task_num);
     }
 
@@ -176,7 +201,6 @@ namespace tinyRPC {
         close(tinyRPC::_uesfd[0]);
         close(tinyRPC::_uesfd[1]);
         close(_epfd);
-        delete _logger;
     }
 
     void server::_init(uint port, uint max_task_num) {
@@ -272,7 +296,7 @@ namespace tinyRPC {
                 tc.add_timer(t);
                 // Bind timer and fd
                 timers[client] = t;
-                LOG_NOTICE(_logger, "Connection accepted, client fd: " + std::to_string(client));
+                LOG_NOTICE(_logger, "Connection accepted, client ip: " + tinyRPC::_get_ip_from_fd(client));
             } else if(events[i].events & EPOLLIN)  {
                 if(curfd == tinyRPC::_uesfd[0]) {
                     // Handle signals
@@ -297,13 +321,9 @@ namespace tinyRPC {
                         }
                     }
                 } else {
-                    // Check is or is not received data
-                    auto caller = std::make_shared<invoker>(curfd, this);
-                    if(caller->receive() > 0) {
-                        // Add task into thread pool
-                        if(!_pool.add_task(caller)) {
-                            LOG_WARNING(_logger, "thread pool is full");
-                        }
+                    // Add task into thread pool
+                    if(!_pool.add_task(std::make_unique<server::invoker>(curfd, this))) {
+                        LOG_WARNING(_logger, "thread pool is full");
                     }
                 }
             }
@@ -318,7 +338,7 @@ namespace tinyRPC {
 
     template<typename Ret, typename ... Args, std::size_t... N>
     server::function_json server::register_procedure_helper(std::function<Ret(Args...)> fun, std::index_sequence<N...>) {
-        server::function_json f = [fun](const server::json& parameters)->server::json {
+        server::function_json f = [fun](const json& parameters)->json {
                                         return fun(parameters[N].get<typename std::decay<Args>::type>()...);
                                   };
         return f;
@@ -340,9 +360,6 @@ namespace tinyRPC {
             this->_dispatch(timeout_period_sec, tc, is_stop, have_timeout, timers, events);
             if(is_stop)
                 break;
-            if(have_timeout) {
-                continue;
-            }
         }
         delete[] timers;
         delete[] events;
