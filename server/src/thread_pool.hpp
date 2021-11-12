@@ -9,7 +9,7 @@
 #include <thread>
 #include <condition_variable>
 
-namespace tinyRPC {
+namespace jrRPC {
     /* Task interface */
     struct task_base {
         virtual void start() = 0;
@@ -29,7 +29,7 @@ namespace tinyRPC {
         /* Condition of worker queue */
         std::condition_variable _condition;
         /* Task Queue */
-        std::queue<std::unique_ptr<tinyRPC::task_base>> _task_queue;
+        std::queue<std::unique_ptr<jrRPC::task_base>> _task_queue;
         /* Task queue mutex */
         std::mutex _locker;
 
@@ -40,7 +40,7 @@ namespace tinyRPC {
     public:
         thread_pool(uint, uint);
         ~thread_pool();
-        bool add_task(std::unique_ptr<tinyRPC::task_base>&&);
+        bool add_task(std::unique_ptr<jrRPC::task_base>&&);
 
     public:
         /* Not allowed Operation */

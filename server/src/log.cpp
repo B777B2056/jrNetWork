@@ -1,6 +1,6 @@
 #include "log.hpp"
 
-namespace tinyRPC {
+namespace jrRPC {
     logger::logger(const std::string& f) : _filename(f) {
         _fatal.open(this->_filename + "_Fatal.log", std::ios::out | std::ios::app);
         _warning.open(this->_filename + "_Warning.log", std::ios::out | std::ios::app);

@@ -2,7 +2,7 @@
 #include "registed_fun/sort/sort.hpp"
 
 int main() {
-    tinyRPC::server server(8000);
+    jrRPC::server server(8000, 100);
     server.register_procedure("int_sort", std::function<std::vector<int>(std::vector<int>)>(int_sort));
     server.run();
     return 0;

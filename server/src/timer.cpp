@@ -1,6 +1,6 @@
 #include "timer.hpp"
 
-namespace tinyRPC {
+namespace jrRPC {
     void timer_container::add_timer(const timer& t) {
         _cont.insert(t);
     }
@@ -18,7 +18,6 @@ namespace tinyRPC {
     }
 
     void timer_container::tick() {
-//        std::cout << "Tick\n";
         while(!this->_is_empty()) {
             timer t = this->_get_min();
             /* Min element NOT timeout */
@@ -27,7 +26,6 @@ namespace tinyRPC {
             /* Timeout */
             this->del_timer(t);
             t.timeout_handler(t.epfd, t.fd);
-//            std::cout<< "TIMEOUT" << std::endl;
         }
     }
 }

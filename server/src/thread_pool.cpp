@@ -1,6 +1,6 @@
 #include "thread_pool.hpp"
 
-namespace tinyRPC {
+namespace jrRPC {
     thread_pool::thread_pool(uint max_pool_size, uint max_task_num)
         : _max_pool_size(max_pool_size),
           _max_task_num(max_task_num),
@@ -21,7 +21,7 @@ namespace tinyRPC {
         _candidate_threads.clear();
     }
 
-    bool thread_pool::add_task(std::unique_ptr<tinyRPC::task_base>&& task) {
+    bool thread_pool::add_task(std::unique_ptr<jrRPC::task_base>&& task) {
         std::unique_lock<std::mutex> lock(_locker);
         if(_task_queue.size() >= _max_task_num) {
             return false;

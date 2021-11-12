@@ -20,12 +20,12 @@ extern "C" {
     #include <sys/epoll.h>
 }
 
-namespace tinyRPC {
+namespace jrRPC {
     using json = nlohmann::json;
 
     static int _uesfd[2]; // file descriptors for unified event source
 
-    static tinyRPC::logger _logger;    /* Logger */
+    static jrRPC::logger _logger;    /* Logger */
 
     void _ues_handler(int);
 
@@ -47,13 +47,13 @@ namespace tinyRPC {
         /* Function list */
         std::map<std::string, function_json> _func_list;
         /* Thread pool */
-        tinyRPC::thread_pool _pool;
+        jrRPC::thread_pool _pool;
         /* Call method */
-        class invoker : public tinyRPC::task_base {
+        class server_stub : public jrRPC::task_base {
         private:
             int _client;
             /* Server */
-            tinyRPC::server* _server;
+            jrRPC::server* _server;
 
         private:
             /* Receive string */
@@ -64,11 +64,11 @@ namespace tinyRPC {
             std::pair<std::string, json> _deserialization(const std::string&);
 
         public:
-            invoker(int, tinyRPC::server*);
+            server_stub(int, jrRPC::server*);
             virtual void start() override;
         };
 
-        friend class invoker;
+        friend class server_stub;
 
     private:
         /* Init network connection */
@@ -80,7 +80,7 @@ namespace tinyRPC {
         function_json register_procedure_helper(std::function<Ret(Args...)>, std::index_sequence<N...>);
 
     public:
-        server(uint port, uint max_pool_size = std::thread::hardware_concurrency(), uint max_task_num = 100);
+        server(uint port, uint max_task_num, uint max_pool_size = std::thread::hardware_concurrency());
 
         ~server();
 
@@ -100,7 +100,7 @@ namespace tinyRPC {
     /* ===================== Implemention ====================*/
     void _ues_handler(int sig) {
         int s = sig;
-        write(tinyRPC::_uesfd[1], reinterpret_cast<char*>(&s), 1);
+        write(jrRPC::_uesfd[1], reinterpret_cast<char*>(&s), 1);
     }
 
     void _timeout_default_handler(int epfd, int client) {
@@ -115,13 +115,13 @@ namespace tinyRPC {
         return res > 0 ? inet_ntoa(addr.sin_addr) : "";
     }
 
-    server::invoker::invoker(int client, tinyRPC::server* s)
+    server::server_stub::server_stub(int client, jrRPC::server* s)
         : _client(client), _server(s) {
 
     }
 
     // Receive binary data
-    std::string server::invoker::_receive() {
+    std::string server::server_stub::_receive() {
         char buffer;
         int recv_size;
         std::string str;
@@ -143,7 +143,7 @@ namespace tinyRPC {
         return str;
     }
 
-    std::string server::invoker::_serialization(const std::string& fun_name, json parameters) {
+    std::string server::server_stub::_serialization(const std::string& fun_name, json parameters) {
         // Invoke target method
         json ret_msg = json::object();
         if(_server->_func_list.find(fun_name) == _server->_func_list.end()) {
@@ -163,12 +163,12 @@ namespace tinyRPC {
         return ret_msg.dump();
     }
 
-    std::pair<std::string, json> server::invoker::_deserialization(const std::string& recv_str) {
+    std::pair<std::string, json> server::server_stub::_deserialization(const std::string& recv_str) {
         json json_str = json::parse(recv_str);
         return std::make_pair(json_str.at("name").get<std::string>(), json_str.at("parameters"));
     }
 
-    void server::invoker::start() {
+    void server::server_stub::start() {
         std::string recv_str = this->_receive();
         if(0 == recv_str.length()) {
             return;
@@ -191,15 +191,15 @@ namespace tinyRPC {
         }
     }
 
-    server::server(uint port, uint max_pool_size, uint max_task_num)
+    server::server(uint port, uint max_task_num, uint max_pool_size)
         : _max_client_num(max_task_num),
           _pool(max_pool_size, max_task_num) {
         this->_init(port, max_task_num);
     }
 
     server::~server() {
-        close(tinyRPC::_uesfd[0]);
-        close(tinyRPC::_uesfd[1]);
+        close(jrRPC::_uesfd[0]);
+        close(jrRPC::_uesfd[1]);
         close(_epfd);
     }
 
@@ -226,14 +226,14 @@ namespace tinyRPC {
             exit(1);
         }
         // Unified event source set
-        if(-1 == pipe(tinyRPC::_uesfd)) {
+        if(-1 == pipe(jrRPC::_uesfd)) {
             LOG_FATAL(_logger, std::string("Pipe error: ") + strerror(errno));
             exit(1);
         }
         // Set ues fd write non-blocking
-        int flag = fcntl(tinyRPC::_uesfd[1], F_GETFL);
+        int flag = fcntl(jrRPC::_uesfd[1], F_GETFL);
         flag |= O_NONBLOCK;
-        fcntl(tinyRPC::_uesfd[1], F_SETFL, flag);
+        fcntl(jrRPC::_uesfd[1], F_SETFL, flag);
         // Alarm-time bind
         signal(SIGALRM, _ues_handler);
         // SIG sig bind
@@ -250,9 +250,9 @@ namespace tinyRPC {
             exit(1);
         }
         _ee.events = EPOLLIN;
-        _ee.data.fd  = tinyRPC::_uesfd[0];
+        _ee.data.fd  = jrRPC::_uesfd[0];
         // Register ues read pipe
-        if(-1 == epoll_ctl(_epfd, EPOLL_CTL_ADD, tinyRPC::_uesfd[0], &_ee)) {
+        if(-1 == epoll_ctl(_epfd, EPOLL_CTL_ADD, jrRPC::_uesfd[0], &_ee)) {
             LOG_FATAL(_logger, std::string("Epoll signal fd error: ") + strerror(errno));
             exit(1);
         }
@@ -290,26 +290,26 @@ namespace tinyRPC {
                 timer t;
                 t.fd = client;
                 t.epfd = _epfd;
-                t.run_time = tinyRPC::set_timeout(timeout_period_sec);
+                t.run_time = jrRPC::set_timeout(timeout_period_sec);
                 t.timeout_handler = _timeout_default_handler;
                 // Add new timer
                 tc.add_timer(t);
                 // Bind timer and fd
                 timers[client] = t;
-                LOG_NOTICE(_logger, "Connection accepted, client ip: " + tinyRPC::_get_ip_from_fd(client));
+                LOG_NOTICE(_logger, "Connection accepted, client ip: " + jrRPC::_get_ip_from_fd(client));
             } else if(events[i].events & EPOLLIN)  {
-                if(curfd == tinyRPC::_uesfd[0]) {
+                if(curfd == jrRPC::_uesfd[0]) {
                     // Handle signals
                     char sig[32];
                     bzero(sig, sizeof(sig));
-                    int num = read(tinyRPC::_uesfd[0], sig, sizeof(sig));
+                    int num = read(jrRPC::_uesfd[0], sig, sizeof(sig));
                     if(num <= 0)
                         continue;
                     for(auto j = 0; j < num; ++j) {
                         switch(sig[j]) {
                             case SIGALRM:
                                 have_timeout = true;    // timeout task
-                                LOG_WARNING(_logger, "Client connection timeout, client ip: " + tinyRPC::_get_ip_from_fd(curfd));
+                                LOG_WARNING(_logger, "Client connection timeout, client ip: " + jrRPC::_get_ip_from_fd(curfd));
                                 break;
                             case SIGTERM:
                             case SIGINT:    // Stop server
@@ -322,7 +322,7 @@ namespace tinyRPC {
                     }
                 } else {
                     // Add task into thread pool
-                    if(!_pool.add_task(std::make_unique<server::invoker>(curfd, this))) {
+                    if(!_pool.add_task(std::make_unique<server::server_stub>(curfd, this))) {
                         LOG_WARNING(_logger, "thread pool is full");
                     }
                 }

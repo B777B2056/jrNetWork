@@ -52,7 +52,7 @@
             logger._notice << ss.str() << std::endl;    \
         }
 
-namespace tinyRPC {
+namespace jrRPC {
     class logger {
     public:
         std::ofstream _fatal, _warning, _notice;

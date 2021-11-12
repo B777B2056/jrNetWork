@@ -6,7 +6,7 @@
 #include <iostream>
 #include <functional>
 
-namespace tinyRPC {
+namespace jrRPC {
     typedef std::chrono::time_point<std::chrono::steady_clock> time_type;
     
     /* Set time */

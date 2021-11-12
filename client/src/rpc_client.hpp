@@ -13,7 +13,7 @@ extern "C" {
     #include <sys/socket.h>
 }
 
-namespace tinyRPC {
+namespace jrRPC {
     class client {
     public:
         using json = nlohmann::json;
