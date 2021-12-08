@@ -48,27 +48,6 @@ namespace jrRPC {
         std::map<std::string, function_json> _func_list;
         /* Thread pool */
         jrRPC::thread_pool _pool;
-        /* Call method */
-        class server_stub : public jrRPC::task_base {
-        private:
-            int _client;
-            /* Server */
-            jrRPC::server* _server;
-
-        private:
-            /* Receive string */
-            std::string _receive();
-            /* Serialization and build a return packet */
-            std::string _serialization(const std::string&, json);
-            /* Deserialization a received string */
-            std::pair<std::string, json> _deserialization(const std::string&);
-
-        public:
-            server_stub(int, jrRPC::server*);
-            virtual void start() override;
-        };
-
-        friend class server_stub;
 
     private:
         /* Init network connection */
@@ -78,6 +57,13 @@ namespace jrRPC {
         /* Create a function_json from a original function */
         template<typename Ret, typename ... Args, std::size_t... N>
         function_json register_procedure_helper(std::function<Ret(Args...)>, std::index_sequence<N...>);
+        /* Receive string */
+        std::string _receive(int);
+        /* Serialization and build a return packet */
+        std::string _serialization(const std::string&, json);
+        /* Deserialization a received string */
+        std::pair<std::string, json> _deserialization(const std::string&);
+        void _stub(int);
 
     public:
         server(uint port, uint max_task_num, uint max_pool_size = std::thread::hardware_concurrency());
@@ -115,18 +101,13 @@ namespace jrRPC {
         return res > 0 ? inet_ntoa(addr.sin_addr) : "";
     }
 
-    server::server_stub::server_stub(int client, jrRPC::server* s)
-        : _client(client), _server(s) {
-
-    }
-
     // Receive binary data
-    std::string server::server_stub::_receive() {
+    std::string server::_receive(int client) {
         char buffer;
         int recv_size;
         std::string str;
         while(true) {
-            recv_size = recv(_client, &buffer, 1, 0);
+            recv_size = recv(client, &buffer, 1, 0);
             if(buffer == '#')
                 break;
             if(-1 == recv_size) {
@@ -143,10 +124,10 @@ namespace jrRPC {
         return str;
     }
 
-    std::string server::server_stub::_serialization(const std::string& fun_name, json parameters) {
+    std::string server::_serialization(const std::string& fun_name, json parameters) {
         // Invoke target method
         json ret_msg = json::object();
-        if(_server->_func_list.find(fun_name) == _server->_func_list.end()) {
+        if(this->_func_list.find(fun_name) == this->_func_list.end()) {
             // NOT FOUND TARGET FUNCTION
             ret_msg["error_flag"] = true;
             ret_msg["error_msg"] = "Target method NOT found";
@@ -154,7 +135,7 @@ namespace jrRPC {
             try {
                 // Call target method, and serialize target method's return value
                 ret_msg["error_flag"] = false;
-                ret_msg["return_value"] = _server->_func_list[fun_name](parameters);
+                ret_msg["return_value"] = this->_func_list[fun_name](parameters);
             } catch (const std::exception& e) {
                 ret_msg["error_flag"] = true;
                 ret_msg["error_msg"] = e.what();
@@ -163,13 +144,13 @@ namespace jrRPC {
         return ret_msg.dump();
     }
 
-    std::pair<std::string, json> server::server_stub::_deserialization(const std::string& recv_str) {
+    std::pair<std::string, json> server::_deserialization(const std::string& recv_str) {
         json json_str = json::parse(recv_str);
         return std::make_pair(json_str.at("name").get<std::string>(), json_str.at("parameters"));
     }
 
-    void server::server_stub::start() {
-        std::string recv_str = this->_receive();
+    void server::_stub(int client) {
+        std::string recv_str = this->_receive(client);
         if(0 == recv_str.length()) {
             return;
         }
@@ -179,7 +160,7 @@ namespace jrRPC {
             auto packet = this->_deserialization(recv_str);
             std::string ret = this->_serialization(packet.first, packet.second) + "#";
             // Send it to client
-            if(-1 == send(_client, ret.c_str(), ret.length(), 0)) {
+            if(-1 == send(client, ret.c_str(), ret.length(), 0)) {
                   // Ignore "Interrupted system call", reason see README.md
                   if(errno != EINTR)
                     LOG_WARNING(_logger, std::string("Send error: ") + strerror(errno));
@@ -322,7 +303,7 @@ namespace jrRPC {
                     }
                 } else {
                     // Add task into thread pool
-                    if(!_pool.add_task(std::make_unique<server::server_stub>(curfd, this))) {
+                    if(!_pool.add_task(&jrRPC::server::_stub, this, curfd)) {
                         LOG_WARNING(_logger, "thread pool is full");
                     }
                 }
