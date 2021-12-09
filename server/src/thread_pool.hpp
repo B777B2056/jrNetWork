@@ -10,7 +10,7 @@
 #include <functional>
 #include <condition_variable>
 
-namespace jrRPC {
+namespace jrThreadPool {
     /* Thread pool */
     class thread_pool {
     private:

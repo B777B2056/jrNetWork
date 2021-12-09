@@ -7,36 +7,20 @@
 #include <functional>
 
 namespace jrRPC {
-    typedef std::chrono::time_point<std::chrono::steady_clock> time_type;
-    
-    /* Set time */
-    static time_type set_timeout(unsigned int timeout) {
-        return std::chrono::steady_clock::now()
-            +  std::chrono::duration<unsigned int, std::ratio<1>>(timeout);
-    }
+    using time_type = std::chrono::time_point<std::chrono::steady_clock>;
 
     /* Timer */
     struct timer {
-        int fd;    // client fd
+        int clientfd;    // client fd
         int epfd;    // epoll fd
-        time_type run_time;    // program run time(absolute time)
-        void (*timeout_handler)(int, int);    // handler
-        
-        bool operator<(const timer& t) const {
-            return run_time < t.run_time;
-        }
+        time_type running_time;    // program run time(absolute time)
+        std::function<void(int,int)> timeout_handler;    // handler
 
-        bool operator>(const timer& t) const {
-            return run_time > t.run_time;
-        }
-
-        bool operator==(const timer& t) const {
-            return run_time == t.run_time;
-        }
-
-        bool operator!=(const timer& t) const {
-            return !operator==(t);
-        }
+        timer(int f, int e, uint timeout, const std::function<void(int,int)>& th);
+        bool operator<(const timer& t) const;
+        bool operator>(const timer& t) const;
+        bool operator==(const timer& t) const;
+        bool operator!=(const timer& t) const;
     };
 
     /* Timer container */

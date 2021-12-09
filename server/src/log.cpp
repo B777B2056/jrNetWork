@@ -13,12 +13,15 @@ namespace jrRPC {
         _notice.close();
     }
 
-    void logger::_split_log() {
+    void logger::split_log() {
 
     }
 
-//    logger* logger::create_logger(const std::string& f) {
-//        return new logger(f);
-//    }
+    std::string logger::get_ip_from_fd(int fd) {
+        sockaddr_in addr;
+        socklen_t addr_size = sizeof(sockaddr_in);
+        int res = getpeername(fd, reinterpret_cast<sockaddr*>(&addr), &addr_size);
+        return res > 0 ? inet_ntoa(addr.sin_addr) : "";
+    }
 }
 

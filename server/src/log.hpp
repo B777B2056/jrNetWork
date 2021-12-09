@@ -9,6 +9,11 @@
 #include <fstream>
 #include <sstream>
 
+extern "C" {
+    #include <arpa/inet.h>
+    #include <sys/socket.h>
+}
+
 /* Print log with level */
 #define LOG_FATAL(logger, msg) \
         {   \
@@ -61,8 +66,8 @@ namespace jrRPC {
     public:
         logger(const std::string& f = "rpc_server");
         ~logger();
-        void _split_log();
-//        static logger* create_logger(const std::string& f = "rpc_server");
+        void split_log();
+        std::string get_ip_from_fd(int);
     };
 }
 

@@ -1,6 +1,28 @@
 #include "timer.hpp"
 
 namespace jrRPC {
+    timer::timer(int f, int e, uint timeout, const std::function<void(int,int)>& th) : clientfd(f), epfd(e), timeout_handler(th) {
+        /* Set time */
+         running_time = std::chrono::steady_clock::now()
+                  +  std::chrono::duration<unsigned int, std::ratio<1>>(timeout);
+    }
+
+    bool timer::operator<(const timer& t) const {
+        return running_time < t.running_time;
+    }
+
+    bool timer::operator>(const timer& t) const {
+        return running_time > t.running_time;
+    }
+
+    bool timer::operator==(const timer& t) const {
+        return running_time == t.running_time;
+    }
+
+    bool timer::operator!=(const timer& t) const {
+        return !operator==(t);
+    }
+
     void timer_container::add_timer(const timer& t) {
         _cont.insert(t);
     }
@@ -21,11 +43,11 @@ namespace jrRPC {
         while(!this->_is_empty()) {
             timer t = this->_get_min();
             /* Min element NOT timeout */
-            if(std::chrono::steady_clock::now() < t.run_time)
+            if(std::chrono::steady_clock::now() < t.running_time)
                 break;
             /* Timeout */
             this->del_timer(t);
-            t.timeout_handler(t.epfd, t.fd);
+            t.timeout_handler(t.epfd, t.clientfd);
         }
     }
 }
