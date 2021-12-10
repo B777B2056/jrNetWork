@@ -14,10 +14,10 @@ namespace jrThreadPool {
     /* Thread pool */
     class thread_pool {
     private:
-        /* Max thread num */
-        const uint _max_pool_size;
         /* Max task num */
         const uint _max_task_num;
+        /* Max thread num */
+        const uint _max_pool_size;
         /* Storage threads */
         std::vector<std::thread> _candidate_threads;
         /* Flag of thread pool stop */
@@ -27,7 +27,7 @@ namespace jrThreadPool {
         /* Task Queue */
         std::queue<std::function<void()>> _task_queue;
         /* Task queue mutex */
-        std::mutex _locker;
+        mutable std::mutex _locker;
 
     private:
         /* Run task */
@@ -48,9 +48,9 @@ namespace jrThreadPool {
         thread_pool& operator=(thread_pool&&) = delete;
     };
 
-    thread_pool::thread_pool(uint max_pool_size, uint max_task_num)
-        : _max_pool_size(max_pool_size),
-          _max_task_num(max_task_num),
+    thread_pool::thread_pool(uint max_task_num, uint max_pool_size)
+        : _max_task_num(max_task_num),
+          _max_pool_size(max_pool_size),
           _candidate_threads(_max_pool_size),
           _stop(false) {
         for(uint i = 0; i < _max_pool_size; ++i) {
@@ -74,7 +74,7 @@ namespace jrThreadPool {
         if(_task_queue.size() >= _max_task_num) {
             return false;
         }
-        _task_queue.push(std::function<void()>(std::bind(std::forward<F>(f), std::forward<Args>(args)...)));
+        _task_queue.emplace(std::bind(std::forward<F>(f), std::forward<Args>(args)...));
         // Wake a sleep thread up
         _condition.notify_one();
         return true;
@@ -82,19 +82,15 @@ namespace jrThreadPool {
 
     void thread_pool::_run() {
         while(true) {
-            std::function<void()> task;
-            {
-                std::unique_lock<std::mutex> waitl(_locker);
-                // Blocking thread when task queue is empty
-                _condition.wait(waitl, [this]()->bool {
-                                        return  this->_stop || !this->_task_queue.empty();
-                                      }
-                              );
-                task = std::move(_task_queue.front());
-                _task_queue.pop();
-            }
-            // Run task
-            task();
+            std::unique_lock<std::mutex> waitl(_locker);
+            // Blocking thread when task queue is empty
+            _condition.wait(waitl, [this]()->bool {
+                                    return  this->_stop || !this->_task_queue.empty();
+                                  }
+                          );
+            _task_queue.front()();  // Run task
+            _task_queue.pop();
+
         }
     }
 }

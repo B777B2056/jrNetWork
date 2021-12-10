@@ -1,7 +1,7 @@
 #include "timer.hpp"
 
-namespace jrRPC {
-    timer::timer(int f, int e, uint timeout, const std::function<void(int,int)>& th) : clientfd(f), epfd(e), timeout_handler(th) {
+namespace jrNetWork {
+    timer::timer(int f, uint timeout, const std::function<void(int)>& th) : clientfd(f), timeout_handler(th) {
         /* Set time */
          running_time = std::chrono::steady_clock::now()
                   +  std::chrono::duration<unsigned int, std::ratio<1>>(timeout);
@@ -47,7 +47,7 @@ namespace jrRPC {
                 break;
             /* Timeout */
             this->del_timer(t);
-            t.timeout_handler(t.epfd, t.clientfd);
+            t.timeout_handler(t.clientfd);
         }
     }
 }

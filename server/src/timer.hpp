@@ -6,17 +6,16 @@
 #include <iostream>
 #include <functional>
 
-namespace jrRPC {
+namespace jrNetWork {
     using time_type = std::chrono::time_point<std::chrono::steady_clock>;
 
     /* Timer */
     struct timer {
         int clientfd;    // client fd
-        int epfd;    // epoll fd
         time_type running_time;    // program run time(absolute time)
-        std::function<void(int,int)> timeout_handler;    // handler
+        std::function<void(int)> timeout_handler;    // handler
 
-        timer(int f, int e, uint timeout, const std::function<void(int,int)>& th);
+        timer(int f, uint timeout, const std::function<void(int)>& th);
         bool operator<(const timer& t) const;
         bool operator>(const timer& t) const;
         bool operator==(const timer& t) const;
