@@ -2,6 +2,7 @@
 #define SOCKET_H
 
 #include "log.hpp"
+#include <vector>
 #include <memory>
 #include <string>
 #include <cstring>
@@ -29,7 +30,7 @@ namespace jrNetWork {
         /* ======== Unix ======== */
     private:
         int socket_fd;
-        TCPSocket(int fd);
+        TCPSocket(int fd, bool is_blocking = true);
 
     public:
         /* Create socket file description */

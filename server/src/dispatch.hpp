@@ -12,6 +12,8 @@
 #include <sys/time.h>
 #include <sys/epoll.h>
 
+#define NONBLOCKING false
+
 namespace jrNetWork {
     class EventDispatch {
         /* ======== Unix ======== */
@@ -20,20 +22,20 @@ namespace jrNetWork {
         int epollfd;    // epoll file descriptor
         epoll_event ee; // epoll event object
         epoll_event* events;    // epoll event object's array
-        bool epoll_init();  // epoll init, create epoll file descriptor
+        void epoll_init();  // epoll init, create epoll file descriptor
         bool regist_epoll_event(int event); // Register event into IO model
         bool unregist_epoll_event(int event);   // Unregister event from IO model
         /* Unified event source */
         static int uesfd[2];
         static void ues_handler(int);   // Wrire signal to uesfd
-        bool ues_init();    // Init Unified Event Source(UES)
+        void ues_init();    // Init Unified Event Source(UES)
 
         /* ======== Unix/Windows ======== */
     private:
         using TaskHandlerType = std::function<void(TCPSocket*)>;
         using TimeoutHandlerType = std::function<void(TCPSocket*)>;
         /* TCP socket object */
-        TCPSocket* socket;
+        TCPSocket socket;
         /* Timer heap */
         TimerContainer tc;
         /* Thread pool */
@@ -45,12 +47,14 @@ namespace jrNetWork {
         TimeoutHandlerType timeout_handler;
         /* Logger storage path */
         const std::string logger_path;
+        /* Socket init */
+        void socket_init(uint port);
         /* Init IO model(Linux: epoll) */
-        bool io_init();
+        void io_init();
 
     public:
         /* Init thread pool and IO model */
-        EventDispatch(TCPSocket* socket, uint max_task_num,
+        EventDispatch(uint port, uint max_task_num,
                       uint max_pool_size=std::thread::hardware_concurrency(), std::string path="");
         /* Set event handler, the last argument must be client's TCPSocket object's reference */
         template<typename F, typename... Args>
@@ -63,14 +67,11 @@ namespace jrNetWork {
 
     int jrNetWork::EventDispatch::uesfd[2];
 
-    EventDispatch::EventDispatch(TCPSocket* socket, uint max_task_num, uint max_pool_size, std::string path)
-        : events(new epoll_event[max_task_num]), socket(socket),
+    EventDispatch::EventDispatch(uint port, uint max_task_num, uint max_pool_size, std::string path)
+        : events(new epoll_event[max_task_num]), socket(!NONBLOCKING),
           max_task_num(max_task_num), thread_pool(max_task_num, max_pool_size), logger_path(path) {
-        if(!io_init()) {
-            std::string msg = std::string("IO init failed: ") + strerror(errno);
-            LOG(Logger::Level::FATAL, msg);
-            throw msg;
-        }
+        socket_init(port);
+        io_init();
         timeout_handler = [this](TCPSocket* client)->void
                           {
                             unregist_epoll_event(client->socket_fd);
@@ -78,17 +79,25 @@ namespace jrNetWork {
                           };
     }
 
-    bool EventDispatch::io_init() {
-        return epoll_init();
+    void EventDispatch::socket_init(uint port) {
+        /* Bind ip address and port */
+        socket.bind(port);
+        /* Listen target port */
+        socket.listen();
     }
 
-    bool EventDispatch::epoll_init() {
+    void EventDispatch::io_init() {
+        epoll_init();
+    }
+
+    void EventDispatch::epoll_init() {
         epollfd = epoll_create(max_task_num);
         if(epollfd == -1) {
-            LOG(Logger::Level::WARNING, std::string("Epoll create failed: ") + strerror(errno));
-            return false;
+            std::string msg = std::string("Epoll create failed: ") + strerror(errno);
+            LOG(Logger::Level::FATAL, msg);
+            throw msg;
         }
-        return ues_init();
+        ues_init();
     }
 
     bool EventDispatch::regist_epoll_event(int event) {
@@ -115,9 +124,12 @@ namespace jrNetWork {
         write(uesfd[1], reinterpret_cast<char*>(&sig), 1);
     }
 
-    bool EventDispatch::ues_init() {
-        if(-1 == pipe(uesfd))
-            return false;
+    void EventDispatch::ues_init() {
+        if(-1 == pipe(uesfd)) {
+            std::string msg = std::string("Unified Event Source pipe failed: ") + strerror(errno);
+            LOG(Logger::Level::FATAL, msg);
+            throw msg;
+        }
         // Set ues fd write non-blocking
         int flag = fcntl(uesfd[1], F_GETFL);
         flag |= O_NONBLOCK;
@@ -129,7 +141,11 @@ namespace jrNetWork {
         signal(SIGTERM, ues_handler);
         signal(SIGPIPE, ues_handler);
         // Register server socket
-        return regist_epoll_event(socket->socket_fd) && regist_epoll_event(uesfd[0]);
+        if(!regist_epoll_event(socket.socket_fd) || !regist_epoll_event(uesfd[0])) {
+            std::string msg = "Unified Event Source epoll regist failed";
+            LOG(Logger::Level::FATAL, msg);
+            throw msg;
+        }
     }
 
     template<typename F, typename... Args>
@@ -137,7 +153,7 @@ namespace jrNetWork {
         auto event_handler_bind = std::bind(std::forward<F>(event_handler),
                                             std::forward<Args>(args)...,
                                             std::placeholders::_1);
-        task_handler = [&event_handler_bind](TCPSocket* client)->void
+        task_handler = [event_handler_bind](TCPSocket* client)->void
                        {
                             event_handler_bind(client);
                        };
@@ -170,9 +186,9 @@ namespace jrNetWork {
             }
             for(int i = 0; i < event_cnt; ++i) {
                 int currentfd = events[i].data.fd;
-                if(currentfd == socket->socket_fd) {
+                if(currentfd == socket.socket_fd) {
                     /* Accept connection */
-                    std::shared_ptr<TCPSocket> client = socket->accept();
+                    std::shared_ptr<TCPSocket> client = socket.accept();
                     /* Register client into epoll */
                     if(!client || !regist_epoll_event(client->socket_fd))
                         continue;
@@ -192,7 +208,7 @@ namespace jrNetWork {
                                 case SIGALRM:
                                     have_timeout = true;    // timeout task
                                     LOG(Logger::Level::WARNING, "Client connection timeout, client ip: "
-                                                              + TCPSocket(currentfd).get_ip_from_socket());
+                                                              + TCPSocket(currentfd, socket.is_blocking).get_ip_from_socket());
                                     break;
                                 case SIGTERM:
                                 case SIGINT:    // Stop server
@@ -206,7 +222,7 @@ namespace jrNetWork {
                         /* Add task into thread pool */
                         if(!thread_pool.add_task([this, currentfd]()->void
                                                  {
-                                                    TCPSocket client(currentfd);
+                                                    TCPSocket client(currentfd, socket.is_blocking);
                                                     task_handler(&client);
                                                  })) {
                             LOG(Logger::Level::WARNING, "thread pool is full");

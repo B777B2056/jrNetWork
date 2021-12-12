@@ -15,8 +15,7 @@ namespace jrRPC {
     private:
         using function_json = std::function<json(const json&)>;
         /* TCP Server API */
-        jrNetWork::TCPSocket* socket;
-        jrNetWork::EventDispatch* dispatch;
+        jrNetWork::EventDispatch dispatch;
         /* Function list */
         std::map<std::string, function_json> func_list;
 
@@ -51,23 +50,15 @@ namespace jrRPC {
     /* ========================= Server init and close ========================= */
 
     RPCServer::RPCServer(uint port, uint max_task_num, uint max_pool_size)
-        : socket(nullptr), dispatch(nullptr) {
-        /* Init socket */
-        socket = new jrNetWork::TCPSocket();
-        /* Bind ip address and port */
-        socket->bind(port);
-        /* Listen target port */
-        socket->listen();
-        /* Init Reactor */
-        dispatch = new jrNetWork::EventDispatch(socket, max_task_num, max_pool_size);
+        : dispatch(port, max_task_num, max_pool_size) {
         /* Regist event handler */
-        dispatch->set_event_handler(&jrRPC::RPCServer::stub, this);
+        dispatch.set_event_handler(&jrRPC::RPCServer::stub, this);
     }
 
     /* ========================= Network ========================= */
 
     void RPCServer::loop(uint timeout_period_sec) {
-        dispatch->event_loop(timeout_period_sec);
+        dispatch.event_loop(timeout_period_sec);
     }
 
     /* ========================= Regist procedure ========================= */

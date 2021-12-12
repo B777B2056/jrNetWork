@@ -10,7 +10,7 @@ namespace jrNetWork {
         }
     }
 
-    TCPSocket::TCPSocket(int fd) : socket_fd(fd) {
+    TCPSocket::TCPSocket(int fd, bool is_blocking) : is_blocking(is_blocking), socket_fd(fd){
 
     }
 
@@ -72,35 +72,119 @@ namespace jrNetWork {
     }
 
     std::string TCPSocket::recv(uint length) {
-        std::string ret("");
-        while(length--) {
-            char data;
-            int flag = ::recv(socket_fd, &data, 1, is_blocking?0:MSG_DONTWAIT);
-            if(flag <= 0) {
-                if(flag < 0) {
+        std::string ret;
+        std::vector<char> buffer(length, 0);
+        buffer.shrink_to_fit();
+        if(is_blocking) {
+            int flag = ::recv(socket_fd, &buffer[0], buffer.size(), 0);
+            if(flag < 0) {
+                if(errno != EINTR) {
                     LOG(Logger::Level::WARNING, std::string("Receive data failed: ") + strerror(errno));
                 }
-                break;
+            } else if(flag == 0) {
+                close();
+            } else {
+                ret.append(buffer.begin(), buffer.begin()+flag);
             }
-            ret += data;
+        } else {
+            int size = 0;
+            while(true) {
+                int flag = ::recv(socket_fd, &buffer[0], buffer.size(), MSG_DONTWAIT);
+                if(flag < 0) {
+                    if(errno==EAGAIN || errno==EWOULDBLOCK)
+                        break;
+                    else if(errno != EINTR) {
+                        LOG(Logger::Level::WARNING, std::string("Receive data failed: ") + strerror(errno));
+                        return "";
+                    }
+                } else if(flag == 0) {
+                    close();
+                    break;
+                } else {
+                    size += flag;
+                }
+            }
+            ret.append(buffer.begin(), buffer.begin()+size);
         }
         return ret;
     }
 
     bool TCPSocket::send(const std::string &data) {
-        int flag = ::send(this->socket_fd, data.c_str(), data.length(), is_blocking?0:MSG_DONTWAIT);
-        if(flag < 0) {
-            LOG(Logger::Level::WARNING, std::string("Send data failed: ") + strerror(errno));
-            return false;
+        int length = data.length();
+        const char* data_c = data.c_str();
+        if(is_blocking) {
+            /* Insure complete sent data */
+            for(int size = 0; size < length; ) {
+                int flag = ::send(socket_fd, data_c+size, length-size, 0);
+                if(flag == -1) {
+                    if(errno!=EINTR) {
+                        LOG(Logger::Level::WARNING, std::string("Send data failed: ") + strerror(errno));
+                        return false;
+                    } else {
+                        continue;
+                    }
+                } else if(flag == 0) {
+                    break;
+                }
+                size += flag;
+            }
+        } else {
+            for(int size = 0; size < length; ) {
+                int flag = ::send(socket_fd, data_c+size, length-size, MSG_DONTWAIT);
+                if(flag < 0) {
+                    if(errno==EAGAIN || errno==EWOULDBLOCK)
+                        break;
+                    else if(errno != EINTR) {
+                        LOG(Logger::Level::WARNING, std::string("Receive data failed: ") + strerror(errno));
+                        return false;
+                    }
+                } else if(flag == 0) {
+                    close();
+                    break;
+                } else {
+                    size += flag;
+                }
+            }
         }
         return true;
     }
 
     bool TCPSocket::send(std::string &&data) {
-        int flag = ::send(this->socket_fd, data.c_str(), data.length(), is_blocking?0:MSG_DONTWAIT);
-        if(flag < 0) {
-            LOG(Logger::Level::WARNING, std::string("Send data failed: ") + strerror(errno));
-            return false;
+        int length = data.length();
+        const char* data_c = data.c_str();
+        if(is_blocking) {
+            /* Insure complete sent data */
+            for(int size = 0; size < length; ) {
+                int flag = ::send(socket_fd, data_c+size, length-size, 0);
+                if(flag == -1) {
+                    if(errno!=EINTR) {
+                        LOG(Logger::Level::WARNING, std::string("Send data failed: ") + strerror(errno));
+                        return false;
+                    } else {
+                        continue;
+                    }
+                } else if(flag == 0) {
+                    break;
+                }
+                size += flag;
+            }
+        } else {
+            for(int size = 0; size < length; ) {
+                int flag = ::send(socket_fd, data_c+size, length-size, MSG_DONTWAIT);
+                if(flag < 0) {
+                    if(errno==EAGAIN || errno==EWOULDBLOCK)
+                        break;
+                    else if(errno != EINTR) {
+                        LOG(Logger::Level::WARNING, std::string("Receive data failed: ") + strerror(errno));
+                        return false;
+                    }
+                } else if(flag == 0) {
+                    close();
+                    break;
+                } else {
+                    size += flag;
+                }
+            }
         }
         return true;
     }
@@ -114,26 +198,28 @@ namespace jrNetWork {
         return  address;
     }
 
-    TCPSocket::TCPSocket(const TCPSocket& s) : socket_fd(s.socket_fd) {
+    TCPSocket::TCPSocket(const TCPSocket& s) : is_blocking(s.is_blocking), socket_fd(s.socket_fd) {
 
     }
 
-    TCPSocket::TCPSocket(TCPSocket&& s) : socket_fd(s.socket_fd) {
+    TCPSocket::TCPSocket(TCPSocket&& s) : is_blocking(s.is_blocking), socket_fd(s.socket_fd) {
 
     }
 
     TCPSocket& TCPSocket::operator=(const TCPSocket& s) {
         socket_fd = s.socket_fd;
+        is_blocking = s.is_blocking;
         return *this;
     }
 
     TCPSocket& TCPSocket::operator=(TCPSocket&& s) {
         socket_fd = s.socket_fd;
+        is_blocking = s.is_blocking;
         return *this;
     }
 
     bool operator==(const TCPSocket& lhs, const TCPSocket& rhs) {
-        return lhs.socket_fd == rhs.socket_fd;
+        return lhs.socket_fd==rhs.socket_fd && lhs.is_blocking==rhs.is_blocking;
     }
 
     bool operator!=(const TCPSocket& lhs, const TCPSocket& rhs) {
