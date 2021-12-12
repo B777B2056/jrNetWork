@@ -5,69 +5,51 @@
 #include <chrono>
 #include <thread>
 #include <string>
+#include <iomanip>
 #include <cstdlib>
 #include <fstream>
 #include <sstream>
-
-extern "C" {
-    #include <arpa/inet.h>
-    #include <sys/socket.h>
-}
+#include <unistd.h>
 
 /* Print log with level */
-#define LOG_FATAL(logger, msg) \
+#define LOG(level, msg) \
         {   \
             std::stringstream ss;   \
-            ss << "[FATAL]"   \
-               << "[" << std::chrono::system_clock::to_time_t(std::chrono::system_clock::now()) << "]" \
-               << "[pid " << getpid() << "]" \
-               << "[tid " << std::this_thread::get_id() << "]"    \
-               << ": " << msg   \
-               << ", at file " << __FILE__  \
-               << ", line " << __LINE__ \
-               << ", function " << __func__;    \
-            logger._fatal << ss.str() << std::endl;    \
+            switch(level) { \
+                case jrNetWork::Logger::Level::FATAL:   \
+                    ss << "[FATAL]"; \
+                    break;  \
+                case jrNetWork::Logger::Level::WARNING:   \
+                    ss << "[WARNING]"; \
+                    break;  \
+                case jrNetWork::Logger::Level::NOTICE:   \
+                    ss << "[NOTICE]"; \
+                    break;  \
+            }   \
+            ss << "[" << jrNetWork::Logger::get_current_time() << "]" \
+               << "[tid" << std::this_thread::get_id() << "]"    \
+               << ":" << msg   \
+               << ",at file " << __FILE__  \
+               << ",line " << __LINE__ \
+               << ",function " << __func__; \
+            jrNetWork::Logger::createLogger().output_log(level, ss.str());   \
         }
 
-#define LOG_WARNING(logger, msg) \
-        {   \
-            std::stringstream ss;   \
-            ss << "[WARNING]"   \
-               << "[" << std::chrono::system_clock::to_time_t(std::chrono::system_clock::now()) << "]" \
-               << "[pid " << getpid() << "]" \
-               << "[tid " << std::this_thread::get_id() << "]"    \
-               << ": " << msg   \
-               << ", at file " << __FILE__  \
-               << ", line " << __LINE__ \
-               << ", function " << __func__;    \
-            logger._warning << ss.str() << std::endl;    \
-        }
-
-#define LOG_NOTICE(logger, msg) \
-        {   \
-            std::stringstream ss;   \
-            ss << "[NOTICE]"   \
-               << "[" << std::chrono::system_clock::to_time_t(std::chrono::system_clock::now()) << "]" \
-               << "[pid " << getpid() << "]" \
-               << "[tid " << std::this_thread::get_id() << "]"    \
-               << ": " << msg   \
-               << ", at file " << __FILE__  \
-               << ", line " << __LINE__ \
-               << ", function " << __func__;    \
-            logger._notice << ss.str() << std::endl;    \
-        }
-
-namespace jrRPC {
-    class logger {
-    public:
-        std::ofstream _fatal, _warning, _notice;
-        const std::string _filename;
+namespace jrNetWork {
+    class Logger {
+    private:
+        std::ofstream fatal, warning, notice;
+        const std::string file_path, filename_base;
+        Logger();
 
     public:
-        logger(const std::string& f = "rpc_server");
-        ~logger();
-        void split_log();
-        std::string get_ip_from_fd(int);
+        enum Level { NOTICE, WARNING, FATAL };
+
+        static Logger& createLogger();
+        ~Logger();
+        static std::string get_current_time();
+        static std::string get_current_process_id();
+        void output_log(Level level, std::string msg);
     };
 }
 

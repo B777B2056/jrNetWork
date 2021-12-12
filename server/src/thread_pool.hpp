@@ -12,84 +12,76 @@
 
 namespace jrThreadPool {
     /* Thread pool */
-    class thread_pool {
+    class ThreadPool {
     private:
         /* Max task num */
-        const uint _max_task_num;
-        /* Max thread num */
-        const uint _max_pool_size;
+        const uint max_task_num;
         /* Storage threads */
-        std::vector<std::thread> _candidate_threads;
+        std::vector<std::thread> candidate_threads;
         /* Flag of thread pool stop */
-        std::atomic_bool _stop;
+        std::atomic_bool stop;
         /* Condition of worker queue */
-        std::condition_variable _condition;
+        std::condition_variable condition;
         /* Task Queue */
-        std::queue<std::function<void()>> _task_queue;
+        std::queue<std::function<void()>> task_queue;
         /* Task queue mutex */
-        mutable std::mutex _locker;
+        mutable std::mutex locker;
 
     private:
         /* Run task */
-        void _run();
+        void run();
 
     public:
-        thread_pool(uint, uint);
-        ~thread_pool();
+        ThreadPool(uint max_task_num, uint max_pool_size);
+        ~ThreadPool();
 
         template<typename F, typename... Args>
-        bool add_task(F&&, Args&&...);
+        bool add_task(F&& f, Args&&... args);
 
     public:
         /* Not allowed Operation */
-        thread_pool(const thread_pool&) = delete;
-        thread_pool(thread_pool&&) = delete;
-        thread_pool& operator=(const thread_pool&) = delete;
-        thread_pool& operator=(thread_pool&&) = delete;
+        ThreadPool(const ThreadPool&) = delete;
+        ThreadPool(ThreadPool&&) = delete;
+        ThreadPool& operator=(const ThreadPool&) = delete;
+        ThreadPool& operator=(ThreadPool&&) = delete;
     };
 
-    thread_pool::thread_pool(uint max_task_num, uint max_pool_size)
-        : _max_task_num(max_task_num),
-          _max_pool_size(max_pool_size),
-          _candidate_threads(_max_pool_size),
-          _stop(false) {
-        for(uint i = 0; i < _max_pool_size; ++i) {
-            _candidate_threads[i] = std::thread(&thread_pool::_run, this);
-        }
+    ThreadPool::ThreadPool(uint max_task_num, uint max_pool_size) : max_task_num(max_task_num), stop(false) {
+        for(uint i = 0; i < max_pool_size; ++i)
+            candidate_threads.emplace_back(&ThreadPool::run, this);
     }
 
-    thread_pool::~thread_pool() {
-        _stop = true;    // atomic variable do not need mutex
-        _condition.notify_all();
-        for(auto& t : _candidate_threads) {
+    ThreadPool::~ThreadPool() {
+        stop = true;    // atomic variable do not need mutex
+        condition.notify_all();
+        for(auto& t : candidate_threads) {
             if(t.joinable())
                 t.join();
         }
-        _candidate_threads.clear();
+        candidate_threads.clear();
     }
 
     template<typename F, typename... Args>
-    bool thread_pool::add_task(F&& f, Args&&... args) {
-        std::unique_lock<std::mutex> lock(_locker);
-        if(_task_queue.size() >= _max_task_num) {
+    bool ThreadPool::add_task(F&& f, Args&&... args) {
+        std::lock_guard<std::mutex> lock(locker);
+        if(task_queue.size() >= max_task_num)
             return false;
-        }
-        _task_queue.emplace(std::bind(std::forward<F>(f), std::forward<Args>(args)...));
+        task_queue.emplace(std::bind(std::forward<F>(f), std::forward<Args>(args)...));
         // Wake a sleep thread up
-        _condition.notify_one();
+        condition.notify_one();
         return true;
     }
 
-    void thread_pool::_run() {
+    void ThreadPool::run() {
         while(true) {
-            std::unique_lock<std::mutex> waitl(_locker);
+            std::unique_lock<std::mutex> wait_locker(locker);
+            if(stop)
+                break;
             // Blocking thread when task queue is empty
-            _condition.wait(waitl, [this]()->bool {
-                                    return  this->_stop || !this->_task_queue.empty();
-                                  }
-                          );
-            _task_queue.front()();  // Run task
-            _task_queue.pop();
+            while(task_queue.empty())
+                condition.wait(wait_locker);
+            task_queue.front()();  // Run task
+            task_queue.pop();
 
         }
     }

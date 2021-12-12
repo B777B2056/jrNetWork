@@ -1,27 +1,47 @@
 #include "log.hpp"
 
-namespace jrRPC {
-    logger::logger(const std::string& f) : _filename(f) {
-        _fatal.open(this->_filename + "_Fatal.log", std::ios::out | std::ios::app);
-        _warning.open(this->_filename + "_Warning.log", std::ios::out | std::ios::app);
-        _notice.open(this->_filename + "_Notice.log", std::ios::out | std::ios::app);
+namespace jrNetWork {
+    Logger::Logger() : filename_base("process"+get_current_process_id()+"_"+get_current_time()+"_") {
+        fatal.open(filename_base + "Fatal.log", std::ios::out | std::ios::app);
+        warning.open(filename_base + "Warning.log", std::ios::out | std::ios::app);
+        notice.open(filename_base + "Notice.log", std::ios::out | std::ios::app);
     }
 
-    logger::~logger() {
-        _fatal.close();
-        _warning.close();
-        _notice.close();
+    Logger& Logger::createLogger() {
+        static Logger logger;
+        return logger;
     }
 
-    void logger::split_log() {
-
+    Logger::~Logger() {
+        fatal.close();
+        warning.close();
+        notice.close();
     }
 
-    std::string logger::get_ip_from_fd(int fd) {
-        sockaddr_in addr;
-        socklen_t addr_size = sizeof(sockaddr_in);
-        int res = getpeername(fd, reinterpret_cast<sockaddr*>(&addr), &addr_size);
-        return res > 0 ? inet_ntoa(addr.sin_addr) : "";
+    std::string Logger::get_current_time() {
+        std::stringstream ss;
+        auto itt = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+        ss << std::put_time(gmtime(&itt), "%Y-%m-%e-%X");
+        return ss.str();
+    }
+
+    std::string Logger::get_current_process_id() {
+        std::string pid = std::to_string(::getpid());
+        return pid;
+    }
+
+    void Logger::output_log(Level level, std::string msg) {
+        switch(level) {
+            case jrNetWork::Logger::Level::FATAL:
+                fatal << msg << std::endl;
+                break;
+            case jrNetWork::Logger::Level::WARNING:
+                warning << msg << std::endl;
+                break;
+            case jrNetWork::Logger::Level::NOTICE:
+                notice << msg << std::endl;
+                break;
+        }
     }
 }
 
