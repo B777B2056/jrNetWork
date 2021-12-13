@@ -9,15 +9,17 @@
 namespace jrNetWork {
     using time_type = std::chrono::time_point<std::chrono::steady_clock>;
 
-    class TCPSocket;
+    namespace TCP {
+        class Socket;
+    }
 
     /* Timer */
     struct Timer {
-        TCPSocket* client;
+        TCP::Socket* client;
         time_type running_time;    // program run time(absolute time)
-        std::function<void(TCPSocket*)> timeout_handler;    // handler
+        std::function<void(TCP::Socket*)> timeout_handler;    // handler
 
-        Timer(TCPSocket* client, uint timeout, const std::function<void(TCPSocket*)>& th);
+        Timer(TCP::Socket* client, uint timeout, const std::function<void(TCP::Socket*)>& th);
         bool operator<(const Timer& t) const;
         bool operator>(const Timer& t) const;
         bool operator==(const Timer& t) const;
@@ -37,7 +39,7 @@ namespace jrNetWork {
 
     public:
         /* Add a timer into container */
-        void add_timer(TCPSocket* client, uint timeout, const std::function<void(TCPSocket*)>& th);
+        void add_timer(TCP::Socket* client, uint timeout, const std::function<void(TCP::Socket*)>& th);
         /* Delte processed timer from container */
         void del_timer(const Timer&);
         /* Check timers in heap, exec timeout timer's handler */

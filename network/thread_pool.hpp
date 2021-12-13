@@ -4,7 +4,6 @@
 #include <queue>
 #include <mutex>
 #include <vector>
-#include <memory>
 #include <atomic>
 #include <thread>
 #include <functional>

@@ -1,101 +1,75 @@
 #ifndef RPC_CLIENT_HPP
 #define RPC_CLIENT_HPP
 
+#include "../../network/socket.hpp"
 #include <string>
 #include <iostream>
 #include <nlohmann/json.hpp>
 
-extern "C" {
-    #include <errno.h>
-    #include <netdb.h>
-    #include <unistd.h>
-    #include <arpa/inet.h>
-    #include <sys/socket.h>
-}
-
 namespace jrRPC {
-    class client {
+    class RPCClient {
     public:
         using json = nlohmann::json;
-        int _serverfd;
+        jrNetWork::TCP::Socket socket;
 
     private:
         template<typename T>
-        void _pack_helper(json&, T&&);
+        void pack_helper(json&, T&&);
 
         template<typename T, typename... Args>
-        void _pack_helper(json&, T&&, Args&&...);
+        void pack_helper(json&, T&&, Args&&...);
 
         template<typename... Args>
-        json _pack(const std::string& name, Args&&...);
+        json pack(const std::string& name, Args&&...);
 
         template<typename Ret>
-        Ret _unpack(const json&);
+        Ret unpack(const json&);
 
     public:
-        client(const std::string& ip, uint port);
+        RPCClient(const std::string& ip, uint port, bool is_io_blocking, uint timeout);
 
-        ~client();
+        ~RPCClient();
 
         template<typename Ret, typename... Args>
         Ret call(const std::string&, Args&&...);
     };
 
-    client::client(const std::string& ip, uint port) {
-        // create client TCP socket
-        _serverfd = socket(AF_INET, SOCK_STREAM, 0);
-        if(-1 == _serverfd) {
-            std::cout << strerror(errno) << std::endl;
-            return;
+    RPCClient::RPCClient(const std::string& ip, uint port, bool is_io_blocking, uint timeout)
+        : socket(is_io_blocking ? jrNetWork::TCP::Socket::BLOCKING : jrNetWork::TCP::Socket::NONBLOCKING) {
+        try {
+            socket.connect(ip, port, timeout);
+        } catch (const std::string& e) {
+            std::cout << e << std::endl;
+            exit(1);
         }
-        // init struct
-        sockaddr_in addr;
-        memset(&addr, 0, sizeof(addr));
-        // find host ip by name through DNS service
-        auto hpk = gethostbyname(ip.c_str());
-        if(!hpk) {
-            std::cout << strerror(errno) << std::endl;
-            return;
-        }
-        // fill the struct
-        addr.sin_family = AF_INET;		// protocol
-        addr.sin_addr.s_addr = inet_addr(inet_ntoa(*(in_addr *)(hpk->h_addr_list[0])));		// service IP
-        addr.sin_port = htons(port);		// target process port number
-//        std::cout << "HOST IP is " << inet_ntoa(addr.sin_addr) << std::endl;
-        // connect
-        if(-1 == connect(_serverfd, reinterpret_cast<sockaddr*>(&addr), sizeof(addr))) {
-            std::cout << strerror(errno) << std::endl;
-            return;
-        }
-//        std::cout << "TCP connection creates successed." << std::endl;
     }
 
-    client::~client() {
-        close(_serverfd);
+    RPCClient::~RPCClient() {
+        socket.close();
     }
 
     template<typename T>
-    void client::_pack_helper(json& parameters, T&& para) {
+    void RPCClient::pack_helper(json& parameters, T&& para) {
         parameters.push_back(para);
     }
 
     template<typename T, typename... Args>
-    void client::_pack_helper(json& parameters, T&& para, Args&&... args) {
+    void RPCClient::pack_helper(json& parameters, T&& para, Args&&... args) {
         parameters.push_back(para);
-        this->_pack_helper(parameters, args...);
+        pack_helper(parameters, args...);
     }
 
     template<typename... Args>
-    client::json client::_pack(const std::string& name, Args&&... args) {
-        client::json packet;
+    RPCClient::json RPCClient::pack(const std::string& name, Args&&... args) {
+        RPCClient::json packet;
         packet["name"] = name;
-        packet["parameters"] = client::json::array();
-        this->_pack_helper(packet["parameters"], args...);
+        packet["parameters"] = RPCClient::json::array();
+        this->pack_helper(packet["parameters"], args...);
         return packet;
     }
 
     template<typename Ret>
-    Ret client::_unpack(const client::json& ret_json) {
+    Ret RPCClient::unpack(const RPCClient::json& ret_json) {
         if(ret_json.at("error_flag").get<bool>()) {
             throw std::runtime_error(ret_json.at("error_msg").get<std::string>());
         } else {
@@ -104,29 +78,23 @@ namespace jrRPC {
     }
 
     template<typename Ret, typename... Args>
-    Ret client::call(const std::string& name, Args&&... args) {
+    Ret RPCClient::call(const std::string& name, Args&&... args) {
         // Pack target method's infomation
-        client::json packet = this->_pack(name, std::forward<Args>(args)...);
+        RPCClient::json packet = pack(name, std::forward<Args>(args)...);
         // Send it to server
-        std::string binary = packet.dump() + "#";
-        if(-1 == send(_serverfd, binary.c_str(), binary.length(), 0)) {
-            std::cout << strerror(errno) << std::endl;
-        }
+        socket.send(packet.dump() + "#");
         // Receive return value from server
-        char buffer;
         std::string str = "";
-        while(true) {
-            if(-1 == recv(_serverfd, &buffer, 1, 0)) {
-                std::cout << strerror(errno) << std::endl;
-                exit(1);
-            }
-            if(buffer == '#')
-                break;
-            str += buffer;
+        auto result = socket.recv(1);
+        std::string data = result.first;
+        while(result.second && data!="" && data!="#") {
+            str.append(data);
+            result = socket.recv(1);
+            data = result.first;
         }
         std::cout  << str << std::endl;
         // Unpack return value
-        return this->_unpack<Ret>(client::json::parse(str));
+        return unpack<Ret>(RPCClient::json::parse(str));
     }
 }
 

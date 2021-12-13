@@ -1,7 +1,7 @@
 #ifndef RPC_SERVER_H
 #define RPC_SERVER_H
 
-#include "dispatch.hpp"
+#include "../../network/dispatch.hpp"
 #include <string>
 #include <memory>
 #include <exception>
@@ -28,7 +28,7 @@ namespace jrRPC {
         /* Deserialization a received string */
         std::pair<std::string, json> deserialization(const std::string& json_str);
         /* Stub */
-        void stub(jrNetWork::TCPSocket* client);
+        void stub(jrNetWork::TCP::Socket* client);
 
     public:
         /* Init network connection */
@@ -103,29 +103,38 @@ namespace jrRPC {
         return std::make_pair(json_data.at("name").get<std::string>(), json_data.at("parameters"));
     }
 
-    void RPCServer::stub(jrNetWork::TCPSocket* client) {
+    void RPCServer::stub(jrNetWork::TCP::Socket* client) {
+        /* Protocol analysis */
         std::string recv_str;
-        std::string data = client->recv(1);
-        while(data!="" && data!="#") {
+        auto result = client->recv(1);
+        std::string data = result.first;
+        while(result.second && data!="" && data!="#") {
             recv_str.append(data);
-            data = client->recv(1);
+            result = client->recv(1);
+            data = result.first;
         }
         if(!recv_str.empty()) {
-//            LOG_NOTICE(log, "Recv str: " + recv_str);
-            // Server stub deserialization
+            LOG(jrNetWork::Logger::Level::NOTICE, std::string("Recv data: ") + recv_str);
+            /* Business logic */
+            std::string ret;
             try {
-                auto packet = this->deserialization(recv_str);
-                std::string ret = this->serialization(packet.first, packet.second) + "#";
-                // Send it to client
-                if(!client->send(ret)) {
-                      // Ignore "Interrupted system call", reason see README.md
-//                      if(errno != EINTR)
-//                        LOG_WARNING(log, std::string("Send error: ") + strerror(errno));
-                } else {
-//                    LOG_NOTICE(log, std::string("Send str: ") + ret);
-                }
+                auto packet = deserialization(recv_str);
+                ret = serialization(packet.first, packet.second) + "#";
             } catch (const std::exception& e) {
-//                LOG_WARNING(log, std::string("JSON parser error: ") + e.what());
+                LOG(jrNetWork::Logger::Level::WARNING, std::string("JSON parser error: ") + e.what());
+                return ;
+            }
+            /* Send data */
+            if(!client->send(ret)) {
+                if(errno != EINTR) {
+                    LOG(jrNetWork::Logger::Level::WARNING, std::string("Send data failed: ") + strerror(errno));
+                }
+            } else {
+                LOG(jrNetWork::Logger::Level::NOTICE, std::string("Send data: ") + ret);
+            }
+        } else if(!result.second) {
+            if(errno != EINTR) {
+                LOG(jrNetWork::Logger::Level::WARNING, std::string("Receive data failed: ") + strerror(errno));
             }
         }
     }

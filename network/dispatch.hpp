@@ -5,14 +5,10 @@
 #include "timer.hpp"
 #include "socket.hpp"
 #include "thread_pool.hpp"
-#include <string>
 #include <functional>
 #include <fcntl.h>
 #include <signal.h>
-#include <sys/time.h>
 #include <sys/epoll.h>
-
-#define NONBLOCKING false
 
 namespace jrNetWork {
     class EventDispatch {
@@ -27,15 +23,16 @@ namespace jrNetWork {
         bool unregist_epoll_event(int event);   // Unregister event from IO model
         /* Unified event source */
         static int uesfd[2];
-        static void ues_handler(int);   // Wrire signal to uesfd
+        static void ues_transfer(int sig);   // Wrire signal to uesfd
         void ues_init();    // Init Unified Event Source(UES)
+        bool ues_handler(); // Handle system signal, ret value is flag of timeout connection
 
         /* ======== Unix/Windows ======== */
     private:
-        using TaskHandlerType = std::function<void(TCPSocket*)>;
-        using TimeoutHandlerType = std::function<void(TCPSocket*)>;
+        using TaskHandlerType = std::function<void(TCP::Socket*)>;
+        using TimeoutHandlerType = std::function<void(TCP::Socket*)>;
         /* TCP socket object */
-        TCPSocket socket;
+        TCP::Socket socket;
         /* Timer heap */
         TimerContainer tc;
         /* Thread pool */
@@ -68,11 +65,11 @@ namespace jrNetWork {
     int jrNetWork::EventDispatch::uesfd[2];
 
     EventDispatch::EventDispatch(uint port, uint max_task_num, uint max_pool_size, std::string path)
-        : events(new epoll_event[max_task_num]), socket(!NONBLOCKING),
+        : events(new epoll_event[max_task_num]), socket(TCP::Socket::NONBLOCKING),
           max_task_num(max_task_num), thread_pool(max_task_num, max_pool_size), logger_path(path) {
         socket_init(port);
         io_init();
-        timeout_handler = [this](TCPSocket* client)->void
+        timeout_handler = [this](TCP::Socket* client)->void
                           {
                             unregist_epoll_event(client->socket_fd);
                             client->close();
@@ -80,10 +77,15 @@ namespace jrNetWork {
     }
 
     void EventDispatch::socket_init(uint port) {
-        /* Bind ip address and port */
-        socket.bind(port);
-        /* Listen target port */
-        socket.listen();
+        try {
+            /* Bind ip address and port */
+            socket.bind(port);
+            /* Listen target port */
+            socket.listen();
+        } catch (const std::string& msg) {
+            LOG(Logger::Level::FATAL, msg);
+            throw msg;
+        }
     }
 
     void EventDispatch::io_init() {
@@ -120,7 +122,7 @@ namespace jrNetWork {
         return true;
     }
 
-    void EventDispatch::ues_handler(int sig) {
+    void EventDispatch::ues_transfer(int sig) {
         write(uesfd[1], reinterpret_cast<char*>(&sig), 1);
     }
 
@@ -135,11 +137,11 @@ namespace jrNetWork {
         flag |= O_NONBLOCK;
         fcntl(uesfd[1], F_SETFL, flag);
         // Alarm-time bind
-        signal(SIGALRM, ues_handler);
+        signal(SIGALRM, ues_transfer);
         // SIG sig bind
-        signal(SIGINT, ues_handler);
-        signal(SIGTERM, ues_handler);
-        signal(SIGPIPE, ues_handler);
+        signal(SIGINT, ues_transfer);
+        signal(SIGTERM, ues_transfer);
+        signal(SIGPIPE, ues_transfer);
         // Register server socket
         if(!regist_epoll_event(socket.socket_fd) || !regist_epoll_event(uesfd[0])) {
             std::string msg = "Unified Event Source epoll regist failed";
@@ -148,19 +150,44 @@ namespace jrNetWork {
         }
     }
 
+    bool EventDispatch::ues_handler() {
+        /* Handle signals */
+        char sig[32];
+        memset(sig, 0, sizeof(sig));
+        int num = read(uesfd[0], sig, sizeof(sig));
+        if(num <= 0)
+            return false;
+        for(auto j = 0; j < num; ++j) {
+            switch(sig[j]) {
+                case SIGALRM:
+                    return true;    // timeout task
+                    LOG(Logger::Level::WARNING, "Client connection timeout, client ip: "
+                                              + TCP::Socket(uesfd[0], socket.blocking_flag).get_ip_from_socket());
+                    break;
+                case SIGTERM:
+                case SIGINT:    // Stop server
+                    LOG(Logger::Level::FATAL, "Server interrupt by system signal");
+                    exit(1);
+                case SIGPIPE:
+                    break;
+            }
+        }
+        return false;
+    }
+
     template<typename F, typename... Args>
     void EventDispatch::set_event_handler(F&& event_handler, Args&&... args) {
         auto event_handler_bind = std::bind(std::forward<F>(event_handler),
                                             std::forward<Args>(args)...,
                                             std::placeholders::_1);
-        task_handler = [event_handler_bind](TCPSocket* client)->void
+        task_handler = [event_handler_bind](TCP::Socket* client)->void
                        {
                             event_handler_bind(client);
                        };
     }
 
     void EventDispatch::set_timeout_handler(TimeoutHandlerType handler) {
-        timeout_handler = [this, handler](TCPSocket* client)->void
+        timeout_handler = [this, handler](TCP::Socket* client)->void
                           {
                               unregist_epoll_event(client->socket_fd);
                               handler(client);
@@ -188,49 +215,37 @@ namespace jrNetWork {
                 int currentfd = events[i].data.fd;
                 if(currentfd == socket.socket_fd) {
                     /* Accept connection */
-                    std::shared_ptr<TCPSocket> client = socket.accept();
+                    std::shared_ptr<TCP::Socket> client = socket.accept();
                     /* Register client into epoll */
-                    if(!client || !regist_epoll_event(client->socket_fd))
+                    if(!client) {
+                        LOG(Logger::Level::WARNING, std::string("Connection accept failed: ") + strerror(errno));
                         continue;
+                    }
+                    if(!regist_epoll_event(client->socket_fd)) {
+                        LOG(Logger::Level::WARNING, std::string("Connection epoll regist failed: ") + strerror(errno));
+                        continue;
+                    }
                     /* Add timer into container */
                     tc.add_timer(client.get(), timeout_period_sec, timeout_handler);
                     LOG(Logger::Level::NOTICE, "Connection accepted, client ip: " + client->get_ip_from_socket());
                 } else if(events[i].events & EPOLLIN)  {
                     if(currentfd == uesfd[0]) {
-                        /* Handle signals */
-                        char sig[32];
-                        memset(sig, 0, sizeof(sig));
-                        int num = read(uesfd[0], sig, sizeof(sig));
-                        if(num <= 0)
-                            continue;
-                        for(auto j = 0; j < num; ++j) {
-                            switch(sig[j]) {
-                                case SIGALRM:
-                                    have_timeout = true;    // timeout task
-                                    LOG(Logger::Level::WARNING, "Client connection timeout, client ip: "
-                                                              + TCPSocket(currentfd, socket.is_blocking).get_ip_from_socket());
-                                    break;
-                                case SIGTERM:
-                                case SIGINT:    // Stop server
-                                    LOG(Logger::Level::FATAL, "Server interrupt by system signal");
-                                    return ;
-                                case SIGPIPE:
-                                    break;
-                            }
-                        }
+                        have_timeout = ues_handler();
                     } else {
                         /* Add task into thread pool */
                         if(!thread_pool.add_task([this, currentfd]()->void
                                                  {
-                                                    TCPSocket client(currentfd, socket.is_blocking);
+                                                    TCP::Socket client(currentfd, socket.blocking_flag);
                                                     task_handler(&client);
                                                  })) {
                             LOG(Logger::Level::WARNING, "thread pool is full");
                         }
                     }
+                } else if(events[i].events & EPOLLOUT) {
+
                 }
+                /* Handle timeout task */
                 if(have_timeout) {
-                    /* Handle timeout task */
                     tc.tick();
                     alarm(timeout_period_sec);
                 }

@@ -1,7 +1,7 @@
 #include "timer.hpp"
 
 namespace jrNetWork {
-    Timer::Timer(TCPSocket* client, uint timeout, const std::function<void(TCPSocket*)>& th) : client(client), timeout_handler(th) {
+    Timer::Timer(TCP::Socket* client, uint timeout, const std::function<void(TCP::Socket*)>& th) : client(client), timeout_handler(th) {
         /* Set time */
          running_time = std::chrono::steady_clock::now()
                   +  std::chrono::duration<unsigned int, std::ratio<1>>(timeout);
@@ -23,7 +23,7 @@ namespace jrNetWork {
         return !operator==(t);
     }
 
-    void TimerContainer::add_timer(TCPSocket* client, uint timeout, const std::function<void(TCPSocket*)>& th) {
+    void TimerContainer::add_timer(TCP::Socket* client, uint timeout, const std::function<void(TCP::Socket*)>& th) {
         container.emplace(client, timeout, th);
     }
 
