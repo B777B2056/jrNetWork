@@ -1,9 +1,8 @@
 #ifndef RPC_CLIENT_HPP
 #define RPC_CLIENT_HPP
 
-#include "../../network/socket.hpp"
+#include "../../../../network/socket.hpp"
 #include <string>
-#include <iostream>
 #include <nlohmann/json.hpp>
 
 namespace jrRPC {
@@ -26,7 +25,7 @@ namespace jrRPC {
         Ret unpack(const json&);
 
     public:
-        RPCClient(const std::string& ip, uint port, bool is_io_blocking, uint timeout);
+        RPCClient(const std::string& ip, uint port);
 
         ~RPCClient();
 
@@ -34,18 +33,12 @@ namespace jrRPC {
         Ret call(const std::string&, Args&&...);
     };
 
-    RPCClient::RPCClient(const std::string& ip, uint port, bool is_io_blocking, uint timeout)
-        : socket(is_io_blocking ? jrNetWork::TCP::Socket::BLOCKING : jrNetWork::TCP::Socket::NONBLOCKING) {
-        try {
-            socket.connect(ip, port, timeout);
-        } catch (const std::string& e) {
-            std::cout << e << std::endl;
-            exit(1);
-        }
+    RPCClient::RPCClient(const std::string& ip, uint port) : socket() {
+        socket.connect(ip, port);
     }
 
     RPCClient::~RPCClient() {
-        socket.close();
+        socket.disconnect();
     }
 
     template<typename T>
@@ -85,14 +78,13 @@ namespace jrRPC {
         socket.send(packet.dump() + "#");
         // Receive return value from server
         std::string str = "";
-        auto result = socket.recv(1);
+        std::pair<std::string, bool> result = socket.recv(1);
         std::string data = result.first;
         while(result.second && data!="" && data!="#") {
             str.append(data);
             result = socket.recv(1);
             data = result.first;
         }
-        std::cout  << str << std::endl;
         // Unpack return value
         return unpack<Ret>(RPCClient::json::parse(str));
     }

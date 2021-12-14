@@ -23,27 +23,28 @@ namespace jrNetWork {
         friend bool operator==(const TCP::Socket& lhs, const TCP::Socket& rhs);
 
         public:
-            enum Flag {BLOCKING, NONBLOCKING};
+            enum IO_MODE {IO_BLOCKING, IO_NONBLOCKING};
 
         private:
             using uint = unsigned int;
 
             /* ======== Unix/Windows ======== */
         private:
-            Flag blocking_flag;
+            IO_MODE blocking_flag;
             Buffer buffer;
 
             /* ======== Unix ======== */
         private:
             int socket_fd;
-            Socket(int fd, Flag blocking_flag = BLOCKING);
+            Socket(int fd, IO_MODE blocking_flag = IO_BLOCKING);
 
         public:
             /* Create socket file description */
-            Socket(Flag blocking_flag = BLOCKING);
+            Socket(IO_MODE blocking_flag = IO_BLOCKING);
             /* ========== Client socket API ========= */
             /* Connect to server */
-            void connect(const std::string& ip, uint port, uint timeout);
+            void connect(const std::string& ip, uint port); // connect BLOCKING
+            void connect(const std::string& ip, uint port, uint timeout);   // connect NONBLOCKING
             /* ========== Server socket API ========= */
             /* Bind ip address and port */
             void bind(uint port);
@@ -52,8 +53,8 @@ namespace jrNetWork {
             /* Accept client connection */
             std::shared_ptr<TCP::Socket> accept();
             /* ========== Shared API ========= */
-            /* Close current socket */
-            void close();
+            /* Close current connection */
+            void disconnect();
             /* Receive data frome stream by length */
             std::pair<std::string, bool> recv(uint length);
             /* Write data to stream */

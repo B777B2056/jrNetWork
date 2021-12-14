@@ -1,0 +1,1 @@
+[FATAL][2021-12-14-06:21:44][tid139737043642176]:Server interrupt by system signal,at file /home/rui/Programs/jrRPC/example/rpc/server/src/../../../../network/dispatch.hpp,line 172,function ues_handler

@@ -8,14 +8,12 @@ namespace jrNetWork {
     private:
         using uint = unsigned int;
         /* Buffer of send */
-        uint send_start, send_end;
         std::string send_buffer;
         /* Buffer of recv */
-        uint recv_start, recv_end;
         std::string recv_buffer;
 
     public:
-        Buffer(uint buffer_len = 32768);
+        Buffer();
         /* Get buffer current size */
         uint send_buffer_size() const;
         uint recv_buffer_size() const;
@@ -34,24 +32,17 @@ namespace jrNetWork {
 
     template<typename Iterator>
     void Buffer::append_send(Iterator start, Iterator end) {
-        if(send_end == send_buffer.size())
-            return ;
-        send_buffer.insert(send_buffer.begin()+send_end, start, end);
-        send_end += std::distance(start, end);
+        send_buffer.append(start, end);
     }
 
     template<typename Iterator>
     void Buffer::append_recv(Iterator start, Iterator end) {
-        if(recv_end == recv_buffer.size())
-            return ;
-        recv_buffer.insert(recv_buffer.begin()+recv_end, start, end);
-        recv_end += std::distance(start, end);
+        recv_buffer.append(start, end);
     }
 
     template<typename Iterator>
     void Buffer::push_front_send(Iterator start, Iterator end) {
-        send_buffer.insert(send_buffer.begin()+send_start, start, end);
-        send_start -= std::distance(start, end);
+        send_buffer.insert(send_buffer.begin(), start, end);
     }
 }
 

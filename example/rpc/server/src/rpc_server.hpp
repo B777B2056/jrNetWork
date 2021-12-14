@@ -1,7 +1,7 @@
 #ifndef RPC_SERVER_H
 #define RPC_SERVER_H
 
-#include "../../network/dispatch.hpp"
+#include "../../../../network/dispatch.hpp"
 #include <string>
 #include <memory>
 #include <exception>
@@ -32,7 +32,7 @@ namespace jrRPC {
 
     public:
         /* Init network connection */
-        RPCServer(uint port, uint max_task_num, uint max_pool_size = std::thread::hardware_concurrency());
+        RPCServer(uint port, std::string path, uint max_task_num, uint max_pool_size = std::thread::hardware_concurrency());
         /* Regist Procedure */
         template<typename Ret, typename ... Args>
         void regist_procedure(const std::string& name, std::function<Ret(Args...)> f);
@@ -49,8 +49,8 @@ namespace jrRPC {
 
     /* ========================= Server init and close ========================= */
 
-    RPCServer::RPCServer(uint port, uint max_task_num, uint max_pool_size)
-        : dispatch(port, max_task_num, max_pool_size) {
+    RPCServer::RPCServer(uint port, std::string path, uint max_task_num, uint max_pool_size)
+        : dispatch(port, max_task_num, max_pool_size, path) {
         /* Regist event handler */
         dispatch.set_event_handler(&jrRPC::RPCServer::stub, this);
     }

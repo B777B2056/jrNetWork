@@ -1,15 +1,37 @@
 #include "socket.hpp"
+#include <iostream>
 
 namespace jrNetWork {
-    TCP::Socket::Socket(Flag is_blocking) : blocking_flag(is_blocking) {
-        socket_fd = ::socket(AF_INET, SOCK_STREAM, 0);
-        if(-1 == this->socket_fd) {
+    TCP::Socket::Socket(IO_MODE is_blocking) : blocking_flag(is_blocking) {
+        socket_fd = ::socket(PF_INET, SOCK_STREAM, 0);
+        if(-1 == socket_fd) {
             throw std::string("Socket create failed: ") + strerror(errno);
         }
     }
 
-    TCP::Socket::Socket(int fd, Flag blocking_flag) : blocking_flag(blocking_flag), socket_fd(fd){
+    TCP::Socket::Socket(int fd, IO_MODE blocking_flag) : blocking_flag(blocking_flag), socket_fd(fd){
 
+    }
+
+    void TCP::Socket::connect(const std::string &ip, uint port) {
+        // init struct
+        sockaddr_in addr;
+        memset(&addr, 0, sizeof(addr));
+        // find host ip by name through DNS service
+        auto hpk = ::gethostbyname(ip.c_str());
+        if(!hpk) {
+            std::string msg = std::string("IP address parsing failed: ") + strerror(errno);
+            throw msg;
+        }
+        // fill the struct
+        addr.sin_family = AF_INET;		// protocol
+        addr.sin_addr.s_addr = inet_addr(inet_ntoa(*(in_addr *)(hpk->h_addr_list[0])));		// server IP
+        addr.sin_port = htons(port);		// target process port number
+        // connect
+        if(-1 == ::connect(socket_fd, reinterpret_cast<sockaddr*>(&addr), sizeof(addr))) {
+            ::close(socket_fd);
+            throw std::string("Connect failed: ") + strerror(errno);
+        }
     }
 
     void TCP::Socket::connect(const std::string &ip, uint port, uint timeout) {
@@ -26,46 +48,36 @@ namespace jrNetWork {
         addr.sin_family = AF_INET;		// protocol
         addr.sin_addr.s_addr = inet_addr(inet_ntoa(*(in_addr *)(hpk->h_addr_list[0])));		// server IP
         addr.sin_port = htons(port);		// target process port number
+        // Set connect non-blocking
+        int flag = fcntl(socket_fd, F_GETFL);
+        flag |= O_NONBLOCK;
+        fcntl(socket_fd, F_SETFL, flag);
         // connect
-        int flag;
-        if(blocking_flag == NONBLOCKING) {
-            // Set connect non-blocking
-            flag = fcntl(socket_fd, F_GETFL);
-            flag |= O_NONBLOCK;
-            fcntl(socket_fd, F_SETFL, flag);
-        }
         if(-1 == ::connect(socket_fd, reinterpret_cast<sockaddr*>(&addr), sizeof(addr))) {
-            if(blocking_flag==BLOCKING || (blocking_flag==NONBLOCKING && errno!=EINTR && errno!=EINPROGRESS)) {
+            if(errno!=EINTR && errno!=EINPROGRESS) {
                 ::close(socket_fd);
                 throw std::string("Connect failed: ") + strerror(errno);
             }
         }
         // Check connection is OK(NON-BLOCKING Mode)
-        if(blocking_flag == NONBLOCKING) {
-            int n, error;
-            fd_set wset;
-            timeval tval;
-            FD_ZERO(&wset);
-            FD_SET(socket_fd, &wset);
-            tval.tv_sec = timeout;
-            tval.tv_usec = 0;
-            if ((n = select(socket_fd+1, NULL, &wset, NULL, 10 ? &tval : NULL)) == 0) {
-                ::close(socket_fd);  /* timeout */
-                errno = ETIMEDOUT;
-                throw std::string("Connect failed: ") + strerror(errno);
-            }
-            if (FD_ISSET(socket_fd, &wset)) {
-                socklen_t len = sizeof(error);
-                int code = ::getsockopt(socket_fd, SOL_SOCKET, SO_ERROR, &error, &len);
-                if (code < 0 || error) {
-                    ::close(socket_fd);
-                    if (error)
-                        errno = error;
+        fd_set rset, wset;
+        timeval tval;
+        FD_ZERO(&rset);
+        FD_ZERO(&wset);
+        FD_SET(socket_fd, &rset);
+        FD_SET(socket_fd, &wset);
+        tval.tv_sec = timeout;
+        tval.tv_usec = 0;
+        flag = select(socket_fd+1, &rset, &wset, NULL, &tval);
+        if(flag == -1) {
+            throw std::string("Connect failed: ") + strerror(errno);
+        } else if(flag == 0) {
+            throw std::string("Connect timeout: ") + strerror(errno);
+        } else {
+            if (FD_ISSET(socket_fd, &rset) || FD_ISSET(socket_fd, &wset)) {
+                if(get_ip_from_socket().empty()) {
                     throw std::string("Connect failed: ") + strerror(errno);
                 }
-                fcntl(socket_fd, F_SETFL, flag);
-            } else {
-                throw "select error: sockfd not set";
             }
         }
     }
@@ -88,21 +100,21 @@ namespace jrNetWork {
     }
 
     std::shared_ptr<TCP::Socket> TCP::Socket::accept() {
-        int clientfd = ::accept4(socket_fd, NULL, NULL, blocking_flag==NONBLOCKING ? SOCK_NONBLOCK : 0);
+        int clientfd = ::accept4(socket_fd, NULL, NULL, blocking_flag==IO_NONBLOCKING ? SOCK_NONBLOCK : 0);
         if(-1 == clientfd) {
             return nullptr;
         }
         return std::shared_ptr<TCP::Socket>(new TCP::Socket(clientfd, blocking_flag));
     }
 
-    void TCP::Socket::close() {
+    void TCP::Socket::disconnect() {
         ::close(socket_fd);
     }
 
     std::pair<std::string, bool> TCP::Socket::recv(uint length) {
         bool ret_flag = true;
         std::vector<char> temp;
-        if(blocking_flag == BLOCKING) {
+        if(blocking_flag == IO_BLOCKING) {
             std::string ret;
             temp.resize(length, 0);
             int flag = ::recv(socket_fd, &temp[0], length, 0);
@@ -110,7 +122,10 @@ namespace jrNetWork {
                 ret.append(temp.begin(), temp.begin()+flag);
             } else {
                 if(flag < 0) {
-                    ret_flag = false;
+                    if(errno != EINTR) {
+                        ret_flag = false;
+                        ::close(socket_fd);
+                    }
                 } else {
                     ::close(socket_fd);
                 }
@@ -131,7 +146,8 @@ namespace jrNetWork {
                     } else if(errno==EINTR) {
                         continue;
                     } else {
-                        flag = false;
+                        ret_flag = false;
+                        ::close(socket_fd);
                         break;
                     }
                 } else if(flag == 0) {
@@ -146,7 +162,7 @@ namespace jrNetWork {
     }
 
     bool TCP::Socket::send(std::string data) {
-        if(blocking_flag == BLOCKING) {
+        if(blocking_flag == IO_BLOCKING) {
             int length = data.length();
             const char* data_c = data.c_str();
             /* Insure complete sent data
@@ -183,7 +199,6 @@ namespace jrNetWork {
                                                     return 0;
                                                 }
                                             } else if(flag == 0) {
-                                                ::close(socket_fd);
                                                 break;
                                             } else {
                                                 sent_size += flag;
@@ -222,7 +237,7 @@ namespace jrNetWork {
         socklen_t addr_size = sizeof(sockaddr_in);
         if(::getpeername(socket_fd, reinterpret_cast<sockaddr*>(&addr), &addr_size) == 0)
             address += inet_ntoa(addr.sin_addr);
-        return  address;
+        return address;
     }
 
     TCP::Socket::Socket(const TCP::Socket& s) : blocking_flag(s.blocking_flag), socket_fd(s.socket_fd) {

@@ -36,10 +36,13 @@
         }
 
 namespace jrNetWork {
+    /* Logger storage path */
+    extern std::string logger_path;
+
     class Logger {
     private:
         std::ofstream fatal, warning, notice;
-        const std::string file_path, filename_base;
+        std::string file_path, filename_base;
         Logger();
 
     public:

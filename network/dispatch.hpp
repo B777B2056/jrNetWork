@@ -42,8 +42,6 @@ namespace jrNetWork {
         TaskHandlerType task_handler;
         /* Timeout handler */
         TimeoutHandlerType timeout_handler;
-        /* Logger storage path */
-        const std::string logger_path;
         /* Socket init */
         void socket_init(uint port);
         /* Init IO model(Linux: epoll) */
@@ -65,14 +63,15 @@ namespace jrNetWork {
     int jrNetWork::EventDispatch::uesfd[2];
 
     EventDispatch::EventDispatch(uint port, uint max_task_num, uint max_pool_size, std::string path)
-        : events(new epoll_event[max_task_num]), socket(TCP::Socket::NONBLOCKING),
-          max_task_num(max_task_num), thread_pool(max_task_num, max_pool_size), logger_path(path) {
+        : events(new epoll_event[max_task_num]), socket(TCP::Socket::IO_NONBLOCKING),
+          max_task_num(max_task_num), thread_pool(max_task_num, max_pool_size) {
+        jrNetWork::logger_path = path;
         socket_init(port);
         io_init();
         timeout_handler = [this](TCP::Socket* client)->void
                           {
                             unregist_epoll_event(client->socket_fd);
-                            client->close();
+                            client->disconnect();
                           };
     }
 
@@ -123,7 +122,11 @@ namespace jrNetWork {
     }
 
     void EventDispatch::ues_transfer(int sig) {
-        write(uesfd[1], reinterpret_cast<char*>(&sig), 1);
+        if(-1 == write(uesfd[1], reinterpret_cast<char*>(&sig), 1)) {
+            std::string msg = std::string("Unified Event Source transfer failed: ") + strerror(errno);
+            LOG(Logger::Level::FATAL, msg);
+            throw msg;
+        }
     }
 
     void EventDispatch::ues_init() {
@@ -157,8 +160,8 @@ namespace jrNetWork {
         int num = read(uesfd[0], sig, sizeof(sig));
         if(num <= 0)
             return false;
-        for(auto j = 0; j < num; ++j) {
-            switch(sig[j]) {
+        for(int i = 0; i < num; ++i) {
+            switch(sig[i]) {
                 case SIGALRM:
                     return true;    // timeout task
                     LOG(Logger::Level::WARNING, "Client connection timeout, client ip: "
@@ -169,6 +172,7 @@ namespace jrNetWork {
                     LOG(Logger::Level::FATAL, "Server interrupt by system signal");
                     exit(1);
                 case SIGPIPE:
+                    TCP::Socket(uesfd[0], socket.blocking_flag).disconnect();
                     break;
             }
         }
