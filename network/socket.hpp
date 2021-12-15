@@ -8,18 +8,21 @@
 #include <cstring>
 #include <cstdlib>
 
+#ifdef __linux__
 #include <fcntl.h>
 #include <netdb.h>
 #include <errno.h>
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
+#elif defined _WIN32
+#endif
 
 namespace jrNetWork {
-    class EventDispatch;
+    class IOModel;
     namespace TCP {
         class Socket {
-        friend class jrNetWork::EventDispatch;
+        friend class jrNetWork::IOModel;
         friend bool operator==(const TCP::Socket& lhs, const TCP::Socket& rhs);
 
         public:
@@ -34,9 +37,12 @@ namespace jrNetWork {
             Buffer buffer;
 
             /* ======== Unix ======== */
+#ifdef __linux__
         private:
             int socket_fd;
-            Socket(int fd, IO_MODE blocking_flag = IO_BLOCKING);
+            Socket(int fd, IO_MODE blocking_flag = IO_BLOCKING)  : blocking_flag(blocking_flag), socket_fd(fd){}
+#elif defined _WIN32
+#endif
 
         public:
             /* Create socket file description */

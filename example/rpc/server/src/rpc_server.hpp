@@ -3,7 +3,6 @@
 
 #include "../../../../network/dispatch.hpp"
 #include <string>
-#include <memory>
 #include <exception>
 #include <nlohmann/json.hpp>
 

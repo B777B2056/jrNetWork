@@ -1,0 +1,8 @@
+cmake_minimum_required(VERSION 3.5)
+project(jr_web_server)
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+aux_source_directory(server SRC_LIST)
+aux_source_directory(../../network NETWORK_SRC_LIST)
+add_executable(jr_web_server ${SRC_LIST} ${NETWORK_SRC_LIST})
+target_link_libraries(jr_web_server pthread)

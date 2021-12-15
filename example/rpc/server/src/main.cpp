@@ -1,5 +1,5 @@
-#include "src/rpc_server.hpp"
-#include "registed_fun/sort/sort.hpp"
+#include "rpc_server.hpp"
+#include "../registed_fun/sort/sort.hpp"
 
 int main() {
     jrRPC::RPCServer server(8000, "logger/", 1000);

@@ -9,10 +9,6 @@ namespace jrNetWork {
         }
     }
 
-    TCP::Socket::Socket(int fd, IO_MODE blocking_flag) : blocking_flag(blocking_flag), socket_fd(fd){
-
-    }
-
     void TCP::Socket::connect(const std::string &ip, uint port) {
         // init struct
         sockaddr_in addr;
