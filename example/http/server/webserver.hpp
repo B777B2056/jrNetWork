@@ -23,7 +23,7 @@ namespace jrHTTP {
 
     private:
         /* Parser http data by state machine, then send ret data */
-        void http_handler(jrNetWork::TCP::Socket* client);
+        void http_handler(std::shared_ptr<jrNetWork::TCP::Socket> client);
         /* Get static or dynamic resources */
         std::string get_resource(const std::string& url, int& ret_code);
         /* Post resources */
@@ -31,9 +31,9 @@ namespace jrHTTP {
         /* Execute CGI program */
         std::string exec_cgi(const std::string& path, const std::string& parameters, int& ret_code, std::string method);
         /* Parser http data into key-value pair by state-machine */
-        void parser_request_line(jrNetWork::TCP::Socket* client, hash_map& request_line_table, int& ret_code);
-        void parser_request_head(jrNetWork::TCP::Socket* client, hash_map& request_head_table, int& ret_code);
-        void parser_request_body(jrNetWork::TCP::Socket* client, int content_length, std::string& request_body);
+        void parser_request_line(std::shared_ptr<jrNetWork::TCP::Socket> client, hash_map& request_line_table, int& ret_code);
+        void parser_request_head(std::shared_ptr<jrNetWork::TCP::Socket> client, hash_map& request_head_table, int& ret_code);
+        void parser_request_body(std::shared_ptr<jrNetWork::TCP::Socket> client, int content_length, std::string& request_body);
 
     public:
         /* Init network connection */

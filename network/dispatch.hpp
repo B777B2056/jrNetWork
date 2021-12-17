@@ -9,7 +9,7 @@ namespace jrNetWork {
     private:
         /* ======== Unix/Windows ======== */
         /* TCP socket object */
-        TCP::Socket socket;
+        std::shared_ptr<TCP::Socket> socket;
         /* Timer heap */
         TimerContainer tc;
         /* Thread pool */
@@ -47,7 +47,7 @@ namespace jrNetWork {
         auto event_handler_bind = std::bind(std::forward<F>(event_handler),
                                             std::forward<Args>(args)...,
                                             std::placeholders::_1);
-        task_handler = [event_handler_bind](TCP::Socket* client)->void
+        task_handler = [event_handler_bind](std::shared_ptr<jrNetWork::TCP::Socket> client)->void
                        {
                             event_handler_bind(client);
                        };

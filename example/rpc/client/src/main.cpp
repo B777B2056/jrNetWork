@@ -1,5 +1,5 @@
 #include <iostream>
-#include "src/rpc_client.hpp"
+#include "rpc_client.hpp"
 
 int main() {
     for(int i = 0; ; ++i) {

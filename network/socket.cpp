@@ -1,5 +1,4 @@
 #include "socket.hpp"
-#include <iostream>
 
 namespace jrNetWork {
     TCP::Socket::Socket(IO_MODE is_blocking) : blocking_flag(is_blocking) {
@@ -113,15 +112,16 @@ namespace jrNetWork {
         if(blocking_flag == IO_BLOCKING) {
             std::string ret;
             temp.resize(length, 0);
-            int flag = ::recv(socket_fd, &temp[0], length, 0);
-            if(flag > 0) {
-                ret.append(temp.begin(), temp.begin()+flag);
+            int size = ::recv(socket_fd, &temp[0], length, 0);
+            if(size > 0) {
+                ret.append(temp.begin(), temp.begin()+size);
             } else {
-                if(flag < 0) {
+                if(size < 0) {
                     if(errno != EINTR) {
                         ret_flag = false;
                     }
                 } else {
+                    disconnect();
                     ret_flag = false;
                 }
             }
@@ -134,8 +134,8 @@ namespace jrNetWork {
              */
             while(true) {
                 temp.resize(length, 0);
-                int flag = ::recv(socket_fd, &temp[0], length, MSG_DONTWAIT);
-                if(flag < 0) {
+                int size = ::recv(socket_fd, &temp[0], length, MSG_DONTWAIT);
+                if(size < 0) {
                     if(errno==EAGAIN || errno==EWOULDBLOCK) {
                         break;
                     } else if(errno==EINTR) {
@@ -144,21 +144,21 @@ namespace jrNetWork {
                         ret_flag = false;
                         break;
                     }
-                } else if(flag == 0) {
-                    ret_flag = false;
+                } else if(size == 0) {
+                    disconnect();
                     break;
                 } else {
-                    buffer.append_recv(temp.begin(), temp.begin()+flag);
+                    recv_buffer.append(temp.begin(), temp.begin()+size);
                 }
             }
-            return std::make_pair(buffer.get_recv(length), ret_flag);
+            return std::make_pair(recv_buffer.get_data(length), ret_flag);
         }
     }
 
     bool TCP::Socket::send(std::string data) {
+        int length = data.length();
+        const char* data_c = data.c_str();
         if(blocking_flag == IO_BLOCKING) {
-            int length = data.length();
-            const char* data_c = data.c_str();
             /* Insure complete sent data
              * After sending, check whether the number of bytes sent is equal to the number of data bytes,
              * if not, continue sending until all data is sent.
@@ -177,52 +177,37 @@ namespace jrNetWork {
                 size += flag;
             }
         } else {
-            auto nonblocking_send = [this](const std::string& d)->uint
-                                    {
-                                        int sent_size = 0;
-                                        const char* d_data_c = d.c_str();
-                                        int d_len = d.length();
-                                        while(true) {
-                                            int flag = ::send(socket_fd, d_data_c, d_len-sent_size, MSG_DONTWAIT);
-                                            if(flag < 0) {
-                                                if(errno==EAGAIN || errno==EWOULDBLOCK) {
-                                                    break;
-                                                } else if(errno==EINTR) {
-                                                    continue;
-                                                } else {
-                                                    return 0;
-                                                }
-                                            } else if(flag == 0) {
-                                                break;
-                                            } else {
-                                                sent_size += flag;
-                                            }
-                                        }
-                                        return sent_size;
-                                    };
-            if(buffer.send_buffer_size() > 0) {
-                /* Send data in buffer */
-                std::string pre_data = buffer.get_send();
-                uint pre_sent_size = nonblocking_send(pre_data);
-                /* Send failed, internal error, see errno */
-                if(pre_sent_size == 0)
-                    return false;
-                /* A part is sent, and the rest is restored to the buffer header */
-                if(pre_sent_size < pre_data.length()) {
-                    buffer.push_front_send(pre_data.begin(), pre_data.end());
+            /* Send data */
+            uint sent_size = 0;
+            while(true) {
+                int flag = ::send(socket_fd, data_c, length-sent_size, MSG_DONTWAIT);
+                if(flag < 0) {
+                    if(errno==EAGAIN || errno==EWOULDBLOCK) {
+                        break;
+                    } else if(errno==EINTR) {
+                        continue;
+                    } else {
+                        break;
+                    }
+                } else if(flag == 0) {
+                    break;
+                } else {
+                    sent_size += flag;
                 }
             }
-            /* Send data */
-            uint sent_size = nonblocking_send(data);
             /* Send failed, internal error, see errno */
             if(sent_size == 0)
                 return false;
-            /* Part of it is sent, and the remainder is added to the end of the buffer */
+            /* Part of it is sent, and the remainder is added to the buffer */
             if(sent_size < data.length()) {
-                buffer.append_send(data.begin(),data.end());
+                send_buffer.append(data.begin()+sent_size, data.end());
             }
         }
         return true;
+    }
+
+    bool TCP::Socket::is_send_all() const {
+        return send_buffer.empty();
     }
 
     std::string TCP::Socket::get_ip_from_socket() const {
@@ -232,26 +217,6 @@ namespace jrNetWork {
         if(::getpeername(socket_fd, reinterpret_cast<sockaddr*>(&addr), &addr_size) == 0)
             address += inet_ntoa(addr.sin_addr);
         return address;
-    }
-
-    TCP::Socket::Socket(const TCP::Socket& s) : blocking_flag(s.blocking_flag), socket_fd(s.socket_fd) {
-
-    }
-
-    TCP::Socket::Socket(TCP::Socket&& s) : blocking_flag(s.blocking_flag), socket_fd(s.socket_fd) {
-
-    }
-
-    TCP::Socket& TCP::Socket::operator=(const TCP::Socket& s) {
-        socket_fd = s.socket_fd;
-        blocking_flag = s.blocking_flag;
-        return *this;
-    }
-
-    TCP::Socket& TCP::Socket::operator=(TCP::Socket&& s) {
-        socket_fd = s.socket_fd;
-        blocking_flag = s.blocking_flag;
-        return *this;
     }
 
     bool TCP::operator==(const TCP::Socket& lhs, const TCP::Socket& rhs) {

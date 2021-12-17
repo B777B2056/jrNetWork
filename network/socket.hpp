@@ -1,6 +1,7 @@
 #ifndef SOCKET_H
 #define SOCKET_H
 
+#include "log.hpp"
 #include "buffer.hpp"
 #include <vector>
 #include <memory>
@@ -34,7 +35,7 @@ namespace jrNetWork {
             /* ======== Unix/Windows ======== */
         private:
             IO_MODE blocking_flag;
-            Buffer buffer;
+            Buffer recv_buffer, send_buffer;
 
             /* ======== Unix ======== */
 #ifdef __linux__
@@ -65,14 +66,12 @@ namespace jrNetWork {
             std::pair<std::string, bool> recv(uint length);
             /* Write data to stream */
             bool send(std::string data);
+            /* Determine whether the data has been sent
+             * (the return value is only meaningful for non-blocking mode)
+             */
+            bool is_send_all() const;
             /* Get current socket's ip address */
             std::string get_ip_from_socket() const;
-
-        public:
-            Socket(const TCP::Socket& s);
-            Socket(TCP::Socket&& s);
-            TCP::Socket& operator=(const TCP::Socket& s);
-            TCP::Socket& operator=(TCP::Socket&& s);
         };
 
         bool operator==(const TCP::Socket& lhs, const TCP::Socket& rhs);

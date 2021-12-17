@@ -10,7 +10,7 @@ namespace jrHTTP {
           HTTP_Version("HTTP/1.0"), file_mapping_path(work_directory) {
         /* Init response header */
         add_ret_line("Server", "jrHTTP");
-        add_ret_line("Connection", "close");   // Default setting: close TCP connection
+//        add_ret_line("Connection", "close");   // Default setting: close TCP connection
         /* Set http handler */
         dispatch.set_event_handler(&HTTPServer::http_handler, this);
     }
@@ -23,7 +23,7 @@ namespace jrHTTP {
         dispatch.event_loop(timeout_period_sec);
     }
 
-    void HTTPServer::http_handler(jrNetWork::TCP::Socket *client) {
+    void HTTPServer::http_handler(std::shared_ptr<jrNetWork::TCP::Socket> client) {
         int ret_code = 200;
         /* HTTP request; data */
         hash_map request_line_table;
@@ -52,6 +52,8 @@ namespace jrHTTP {
              */
             if(request_line_table["method"] == "get") {
                 ret_body = get_resource(request_line_table["url"], ret_code);
+                std::vector<char> v(ret_body.begin(), ret_body.end());
+                v.at(0);
             } else if (request_line_table["method"] == "post") {
                 ret_body = post_resource(request_line_table["url"], request_body, ret_code);
             } else {
@@ -119,34 +121,35 @@ namespace jrHTTP {
              ret_code = 500;
              return "";
         } else if(0 == pid) {
-             close(cgi_input[1]);
-             close(cgi_output[0]);
-             dup2(cgi_input[0], STDIN_FILENO);
-             dup2(cgi_output[1], STDOUT_FILENO);
-             setenv("REQUEST_METHOD", method.c_str(), 1);
-             setenv("QUERY_STRING", parameters.c_str(), 1);
-             if(-1 == execl(cgi_path.c_str(), cgi_path.c_str(), NULL)) {
+             ::close(cgi_input[1]);
+             ::close(cgi_output[0]);
+             ::dup2(cgi_input[0], STDIN_FILENO);
+             ::dup2(cgi_output[1], STDOUT_FILENO);
+             ::setenv("REQUEST_METHOD", method.c_str(), 1);
+             ::setenv("QUERY_STRING", parameters.c_str(), 1);
+             if(-1 == ::execl(cgi_path.c_str(), cgi_path.c_str(), NULL)) {
                  ret_code = 500;
                  std::cout << strerror(errno) << std::endl;
              }
-             _exit(0);
+             ::_exit(0);
          } else {
-             close(cgi_input[0]);
-             close(cgi_output[1]);
+             ::close(cgi_input[0]);
+             ::close(cgi_output[1]);
              std::string content("");
              char ch;
-             while(read(cgi_output[0], &ch, 1) > 0) {
+             while(::read(cgi_output[0], &ch, 1) > 0) {
                  content += ch;
              }
              ret_code = 200;
-             close(cgi_input[1]);
-             close(cgi_output[0]);
-             waitpid(pid, NULL, WNOHANG);
+             ::close(cgi_input[1]);
+             ::close(cgi_output[0]);
+             ::waitpid(pid, NULL, WNOHANG);
              return content;
         }
     }
 
-    void HTTPServer::parser_request_line(jrNetWork::TCP::Socket *client, hash_map &request_line_table, int& ret_code) {
+    void HTTPServer::parser_request_line(std::shared_ptr<jrNetWork::TCP::Socket> client,
+                                         hash_map &request_line_table, int& ret_code) {
         enum State {START, METHOD, URL, VERSION, END, ERROR};
         State state = START;
         bool stop = false;
@@ -209,6 +212,7 @@ namespace jrHTTP {
         }
         if(!stop) {
             ret_code = 500;
+            LOG(jrNetWork::Logger::NOTICE, std::string("Break earily: ") + strerror(errno));
         } else {
             request_line_table["method"] = method;
             request_line_table["url"] = url;
@@ -216,11 +220,18 @@ namespace jrHTTP {
         }
     }
 
-    void HTTPServer::parser_request_head(jrNetWork::TCP::Socket *client, hash_map &request_head_table, int& ret_code) {
+    void HTTPServer::parser_request_head(std::shared_ptr<jrNetWork::TCP::Socket> client,
+                                         hash_map &request_head_table, int& ret_code) {
         enum State {START, KEY, VALUE, NEXT_LINE, LINE_END, END, ERROR};
         State state = START;
         bool stop = false;
         std::string key, value;
+        auto remove_front_space = [](std::string& str)->void {
+            auto it = str.begin();
+            while(*it == ' ')
+                ++it;
+            str.erase(str.begin(), it);
+        };
         while(!stop) {
             auto recv = client->recv(1);
             if(recv.first.empty()) {
@@ -254,12 +265,6 @@ namespace jrHTTP {
             case NEXT_LINE:
                 if(recv.first[0]=='\n') {
                     /* remove front space */
-                    auto remove_front_space = [](std::string& str)->void {
-                        auto it = str.begin();
-                        while(*it == ' ')
-                            ++it;
-                        str.erase(str.begin(), it);
-                    };
                     remove_front_space(key);
                     remove_front_space(value);
                     request_head_table[key] = value;
@@ -295,7 +300,8 @@ namespace jrHTTP {
         }
     }
 
-    void HTTPServer::parser_request_body(jrNetWork::TCP::Socket *client, int content_length, std::string &request_body) {
+    void HTTPServer::parser_request_body(std::shared_ptr<jrNetWork::TCP::Socket> client,
+                                         int content_length, std::string &request_body) {
         while(content_length--) {
             auto recv = client->recv(1);
             if(!recv.second)

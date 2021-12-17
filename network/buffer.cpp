@@ -1,32 +1,26 @@
 #include "buffer.hpp"
 
 namespace jrNetWork {
-    Buffer::Buffer() : send_buffer(),recv_buffer() {
-
+    uint Buffer::size() const {
+        return buffer.size();
     }
 
-    uint Buffer::send_buffer_size() const {
-        return send_buffer.size();
+    bool Buffer::empty() const {
+        return size() == 0;
     }
 
-    uint Buffer::recv_buffer_size() const {
-        return recv_buffer.size();
+    std::string Buffer::get_data() {
+        return get_data(buffer.size());
     }
 
-    std::string Buffer::get_send() {
-        std::string ret = send_buffer;
-        send_buffer.clear();
-        return ret;
-    }
-
-    std::string Buffer::get_recv(uint length) {
+    std::string Buffer::get_data(uint length) {
         std::string ret;
-        if(recv_buffer_size() <= length) {
-            ret = recv_buffer;
-            recv_buffer.clear();
+        if(size() <= length) {
+            ret = buffer;
+            buffer.clear();
         } else {
-            ret.append(recv_buffer.begin(), recv_buffer.begin()+length);
-            recv_buffer.erase(recv_buffer.begin(), recv_buffer.begin()+length);
+            ret.append(buffer.begin(), buffer.begin()+length);
+            buffer.erase(buffer.begin(), buffer.begin()+length);
         }
         return ret;
     }

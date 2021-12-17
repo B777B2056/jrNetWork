@@ -6,6 +6,7 @@
 #include "socket.hpp"
 #include "thread_pool.hpp"
 #include <cstring>
+#include <unordered_map>
 
 #ifdef __linux__
 #include <fcntl.h>
@@ -16,19 +17,26 @@
 #endif
 
 namespace jrNetWork {
-    using TaskHandlerType = std::function<void(TCP::Socket*)>;
-    using TimeoutHandlerType = std::function<void(TCP::Socket*)>;
+    using TaskHandlerType = std::function<void(std::shared_ptr<TCP::Socket>)>;
+    using TimeoutHandlerType = std::function<void(std::shared_ptr<TCP::Socket>)>;
 
     class IOModel {
+    private:
+        /* Unix/Windows */
+        uint max_task_num;
+        std::shared_ptr<TCP::Socket> socket;
+
 #ifdef __linux__
         /* ======== Unix:Epoll ======== */
     private:
-        uint max_task_num;
-        TCP::Socket socket;
+        std::unordered_map<int, std::shared_ptr<TCP::Socket>> fd_socket_table;
         /* Epoll */
         int epollfd;    // epoll file descriptor
         epoll_event ee; // epoll event object
         epoll_event* events;    // epoll event object's array
+        void epoll_init(uint max_task_num);  // epoll init, create epoll file descriptor
+        bool regist_epoll_event(int event, uint32_t type);    // Register event into epoll wait
+        bool unregist_epoll_event(int event, uint32_t type);  // Unregister event from epoll wait
         /* Unified event source */
         static int uesfd[2];
         static void ues_transfer(int sig);   // Wrire signal to uesfd
@@ -41,12 +49,10 @@ namespace jrNetWork {
     public:
         IOModel() = default;  // Epoll init
         ~IOModel(); // Destroy resource
-        void epoll_init(TCP::Socket& socket, uint max_task_num);  // epoll init, create epoll file descriptor
-        bool regist_io_event(TCP::Socket* event);    // Register event into IO model
-        bool unregist_io_event(TCP::Socket* event);  // Unregister event from IO model
+        void io_model_init(std::shared_ptr<TCP::Socket> socket, uint max_task_num);  // epoll init, create epoll file descriptor
         void io_handler(uint timeout_period_secm,
-                             TimeoutHandlerType timeout_handler, TaskHandlerType task_handler,
-                             TimerContainer&tc,  jrThreadPool::ThreadPool& thread_pool);   // Epoll io multiplexing
+                        TimeoutHandlerType timeout_handler, TaskHandlerType task_handler,
+                        TimerContainer&tc,  jrThreadPool::ThreadPool& thread_pool);   // Epoll io multiplexing
     };
 }
 
