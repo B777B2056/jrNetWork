@@ -120,13 +120,12 @@ namespace jrNetWork {
                 if(flag < 0) {
                     if(errno != EINTR) {
                         ret_flag = false;
-                        ::close(socket_fd);
                     }
                 } else {
-                    ::close(socket_fd);
+                    ret_flag = false;
                 }
             }
-            return std::make_pair(ret, flag);
+            return std::make_pair(ret, ret_flag);
         } else {
             /*
              * Read all the data in the system buffer at one time and store it in the Buffer
@@ -143,11 +142,10 @@ namespace jrNetWork {
                         continue;
                     } else {
                         ret_flag = false;
-                        ::close(socket_fd);
                         break;
                     }
                 } else if(flag == 0) {
-                    ::close(socket_fd);
+                    ret_flag = false;
                     break;
                 } else {
                     buffer.append_recv(temp.begin(), temp.begin()+flag);

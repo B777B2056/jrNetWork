@@ -25,11 +25,7 @@ namespace jrNetWork {
     }
 
     void IOModel::ues_transfer(int sig) {
-        if(-1 == write(uesfd[1], reinterpret_cast<char*>(&sig), 1)) {
-            std::string msg = std::string("Unified Event Source transfer failed: ") + strerror(errno);
-            LOG(Logger::Level::FATAL, msg);
-            throw msg;
-        }
+        write(uesfd[1], reinterpret_cast<char*>(&sig), 1);
     }
 
     void IOModel::ues_init() {
@@ -76,7 +72,8 @@ namespace jrNetWork {
                     LOG(Logger::Level::FATAL, "Server interrupt by system signal");
                     exit(1);
                 case SIGPIPE:
-                    TCP::Socket(uesfd[0], socket.blocking_flag).disconnect();
+//                    LOG(Logger::Level::FATAL, "SIGPIPE!!!!!!!!!!!!!!");
+//                    TCP::Socket(uesfd[0], socket.blocking_flag).disconnect();
                     break;
             }
         }

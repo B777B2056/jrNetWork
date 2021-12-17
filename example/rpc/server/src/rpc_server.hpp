@@ -107,7 +107,14 @@ namespace jrRPC {
         std::string recv_str;
         auto result = client->recv(1);
         std::string data = result.first;
-        while(result.second && data!="" && data!="#") {
+        while(true) {
+            if(!result.second) {
+                client->disconnect();   // Error, close connection
+                return ;
+            }
+            if(data.empty() || data=="#") {
+                break;  // Stop flag
+            }
             recv_str.append(data);
             result = client->recv(1);
             data = result.first;

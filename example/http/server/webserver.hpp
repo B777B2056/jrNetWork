@@ -3,7 +3,7 @@
 
 #include "../../../network/dispatch.hpp"
 #include <string>
-#include <fstream>
+#include <iostream>
 #include <exception>
 #include <unordered_map>
 #include <sys/wait.h>
@@ -17,7 +17,6 @@ namespace jrHTTP {
     private:
         jrNetWork::EventDispatch dispatch;
         hash_map ret_head_table;
-        std::string ret_head;
         const std::string HTTP_Version;
         const std::string file_mapping_path;
         static std::unordered_map<int, std::string> status_table;
@@ -32,8 +31,8 @@ namespace jrHTTP {
         /* Execute CGI program */
         std::string exec_cgi(const std::string& path, const std::string& parameters, int& ret_code, std::string method);
         /* Parser http data into key-value pair by state-machine */
-        bool parser_request_line(jrNetWork::TCP::Socket* client, hash_map& request_line_table);
-        bool parser_request_head(jrNetWork::TCP::Socket* client, hash_map& request_head_table);
+        void parser_request_line(jrNetWork::TCP::Socket* client, hash_map& request_line_table, int& ret_code);
+        void parser_request_head(jrNetWork::TCP::Socket* client, hash_map& request_head_table, int& ret_code);
         void parser_request_body(jrNetWork::TCP::Socket* client, int content_length, std::string& request_body);
 
     public:
