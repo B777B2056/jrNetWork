@@ -4,6 +4,10 @@ namespace jrNetWork {
 #ifdef __unix__
     int jrNetWork::IOModel::uesfd[2];
 
+    IOModel::IOModel() {
+        fd_socket_table.clear();
+    }
+
     IOModel::~IOModel() {
         ::close(uesfd[0]);
         ::close(uesfd[1]);
@@ -120,7 +124,6 @@ namespace jrNetWork {
                 if(currentfd == socket->socket_fd) {
                     /* Accept connection */
                     std::shared_ptr<TCP::Socket> client = socket->accept();
-                    fd_socket_table[client->socket_fd] = client;
                     /* Register client into epoll */
                     if(!client) {
                         LOG(Logger::Level::WARNING, std::string("Connection accept failed: ") + strerror(errno));
@@ -130,6 +133,7 @@ namespace jrNetWork {
                         LOG(Logger::Level::WARNING, std::string("Connection epoll regist failed: ") + strerror(errno));
                         continue;
                     }
+                    fd_socket_table[client->socket_fd] = client;
                     /* Add timer into container */
                     tc.add_timer(client, timeout_period_sec, timeout_handler);
                     LOG(Logger::Level::NOTICE, "Connection accepted, client ip: " + client->get_ip_from_socket());
@@ -141,8 +145,6 @@ namespace jrNetWork {
                         {
                            // Execute user-specified logic
                            task_handler(fd_socket_table[currentfd]);
-//                           LOG(Logger::Level::NOTICE, "EPOLLIN: " + std::to_string(currentfd)
-//                                                     + ", error: " + strerror(errno));
                            // If the data has not been sent at one time,
                            // it will be pushed into the buffer (completed by TCP::Socket),
                            // and then register the EPOLLOUT event to wait for the next sending.

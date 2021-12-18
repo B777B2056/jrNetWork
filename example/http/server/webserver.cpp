@@ -52,8 +52,6 @@ namespace jrHTTP {
              */
             if(request_line_table["method"] == "get") {
                 ret_body = get_resource(request_line_table["url"], ret_code);
-                std::vector<char> v(ret_body.begin(), ret_body.end());
-                v.at(0);
             } else if (request_line_table["method"] == "post") {
                 ret_body = post_resource(request_line_table["url"], request_body, ret_code);
             } else {

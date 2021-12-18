@@ -5,8 +5,8 @@
 #include "timer.hpp"
 #include "socket.hpp"
 #include "thread_pool.hpp"
+#include <map>
 #include <cstring>
-#include <unordered_map>
 
 #ifdef __linux__
 #include <fcntl.h>
@@ -29,7 +29,7 @@ namespace jrNetWork {
 #ifdef __linux__
         /* ======== Unix:Epoll ======== */
     private:
-        std::unordered_map<int, std::shared_ptr<TCP::Socket>> fd_socket_table;
+        std::map<int, std::shared_ptr<TCP::Socket>> fd_socket_table;
         /* Epoll */
         int epollfd;    // epoll file descriptor
         epoll_event ee; // epoll event object
@@ -47,7 +47,7 @@ namespace jrNetWork {
 #endif
 
     public:
-        IOModel() = default;  // Epoll init
+        IOModel();
         ~IOModel(); // Destroy resource
         void io_model_init(std::shared_ptr<TCP::Socket> socket, uint max_task_num);  // epoll init, create epoll file descriptor
         void io_handler(uint timeout_period_secm,
