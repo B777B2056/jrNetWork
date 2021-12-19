@@ -13,29 +13,26 @@ namespace jrNetWork {
     class IO_Model_EPOLL : public IO_Model {};
 
     template<typename model>
-    struct Event {};
+    struct EventType {};
 
     template<>
-    struct Event<IO_Model_POLL> {
-        int event;
-        short type;
+    struct EventType<IO_Model_POLL> {
+        enum Type {READ_IN = POLLIN, WRITE_OUT = POLLOUT};
     };
 
     template<>
-    struct Event<IO_Model_EPOLL> {
-        int event;
-        uint32_t type;
+    struct EventType<IO_Model_EPOLL> {
+        enum Type {READ_IN = EPOLLIN|EPOLLET, WRITE_OUT = EPOLLOUT|EPOLLET};
     };
 
     template<typename model>
-    class EventList {
-    private:
-        long int* events;
-
-    public:
-        EventList(long int* ptr) : events(ptr) {}
-        Event<model> operator[](std::size_t index) const { return events[index]; }
+    struct Event {
+        int event;
+        typename EventType<model>::Type type;
     };
+
+    template<typename model>
+    class EventList {};
 
     template<>
     class EventList<IO_Model_POLL> {
@@ -44,15 +41,16 @@ namespace jrNetWork {
         pollfd* events;
 
     public:
-        EventList(uint max_task_n) : events(new pollfd[max_task_n]) {
+        EventList(uint max_task_n) : events(new pollfd[max_task_n+1]) {
             for(uint i=0; i<max_task_n; ++i)
-                events[i].fd=-1;
-            events[0].events = POLLRDNORM;
+                events[i].fd = -1;
+            events[0].events = POLLIN;
         }
 
         ~EventList() { delete[] events; }
         Event<IO_Model_POLL> operator[](std::size_t index) const {
-            return Event<IO_Model_POLL>{events[index].fd, events[index].events};
+            return Event<IO_Model_POLL>{events[index].fd,
+                                        EventType<IO_Model_POLL>::Type(events[index].revents)};
         }
     };
 
@@ -66,13 +64,18 @@ namespace jrNetWork {
         EventList(uint max_task_n) : events(new epoll_event[max_task_n]) {}
         ~EventList() { delete[] events; }
         Event<IO_Model_EPOLL> operator[](std::size_t index) const {
-            return Event<IO_Model_EPOLL>{events[index].data.fd, events[index].events};
+            return Event<IO_Model_EPOLL>{events[index].data.fd,
+                                         EventType<IO_Model_EPOLL>::Type(events[index].events)};
         }
     };
 
     template<typename model>
     struct MultiplexerBase {
         virtual ~MultiplexerBase() {}
+        virtual bool set_listened(Event<model> listen) = 0;
+        virtual bool is_connection_event(int index) const = 0;
+        virtual bool is_readable_event(int index) const = 0;
+        virtual bool is_writeable_event(int index) const = 0;
         virtual bool regist_event(Event<model> event) = 0;
         virtual bool unregist_event(Event<model> event) = 0;
         virtual int wait() = 0;
@@ -89,6 +92,10 @@ namespace jrNetWork {
     public:
         MultiplexerPoll(uint max_task_n);
         virtual ~MultiplexerPoll() {}
+        virtual bool set_listened(Event<IO_Model_POLL> listen) override;
+        virtual bool is_connection_event(int index) const override;
+        virtual bool is_readable_event(int index) const override;
+        virtual bool is_writeable_event(int index) const override;
         virtual bool regist_event(Event<IO_Model_POLL> event) override;    // Register event
         virtual bool unregist_event(Event<IO_Model_POLL> event) override;  // Unregister event
         virtual int wait() override;
@@ -99,6 +106,7 @@ namespace jrNetWork {
     class MultiplexerEpoll : public MultiplexerBase<IO_Model_EPOLL> {
     private:
         int max_task_n;
+        int listenfd;
         int epollfd;    // epoll file descriptor
         epoll_event ee; // epoll event object
         EventList<IO_Model_EPOLL> event_list;
@@ -106,6 +114,10 @@ namespace jrNetWork {
     public:
         MultiplexerEpoll(uint max_task_n);   // epoll init, create epoll file descriptor
         virtual ~MultiplexerEpoll();
+        virtual bool set_listened(Event<IO_Model_EPOLL> listen) override;  // Set server listen socket
+        virtual bool is_connection_event(int index) const override;
+        virtual bool is_readable_event(int index) const override;
+        virtual bool is_writeable_event(int index) const override;
         virtual bool regist_event(Event<IO_Model_EPOLL> event) override;    // Register event into epoll wait
         virtual bool unregist_event(Event<IO_Model_EPOLL> event) override;  // Unregister event from epoll wait
         virtual int wait() override;

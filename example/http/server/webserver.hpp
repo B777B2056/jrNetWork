@@ -15,7 +15,7 @@ namespace jrHTTP {
         using hash_map = std::unordered_map<std::string, std::string>;
 
     private:
-        jrNetWork::EventDispatch dispatch;
+        jrNetWork::EventDispatch<jrNetWork::IO_Model_POLL> dispatch;
         hash_map ret_head_table;
         const std::string HTTP_Version;
         const std::string file_mapping_path;
