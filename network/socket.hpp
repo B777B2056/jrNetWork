@@ -21,9 +21,11 @@
 
 namespace jrNetWork {
     class IOModel;
+    class EventDispatch;
     namespace TCP {
         class Socket {
         friend class jrNetWork::IOModel;
+        friend class jrNetWork::EventDispatch;
         friend bool operator==(const TCP::Socket& lhs, const TCP::Socket& rhs);
 
         public:
