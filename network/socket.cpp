@@ -9,6 +9,7 @@ namespace jrNetWork {
     }
 
     void TCP::Socket::connect(std::string ip, uint port) {
+        sockaddr_in addr;
         // init struct
         ::memset(&addr, 0, sizeof(addr));
         // find host ip by name through DNS service
@@ -29,6 +30,7 @@ namespace jrNetWork {
     }
 
     void TCP::Socket::bind(uint port) {
+        sockaddr_in addr;
         ::memset(&addr, 0, sizeof(sockaddr_in));
         addr.sin_family = AF_INET;
         addr.sin_port = htons(port);

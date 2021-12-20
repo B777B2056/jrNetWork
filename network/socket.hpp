@@ -33,7 +33,6 @@ namespace jrNetWork {
             IO_MODE blocking_flag;
             Buffer recv_buffer, send_buffer;
             int socket_fd;
-            sockaddr_in addr;
             Socket(int fd, IO_MODE blocking_flag = IO_BLOCKING)  : blocking_flag(blocking_flag), socket_fd(fd){}
 
         public:
