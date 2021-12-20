@@ -2,16 +2,15 @@
 
 namespace jrNetWork {
     TCP::Socket::Socket(IO_MODE is_blocking) : blocking_flag(is_blocking) {
-        socket_fd = ::socket(PF_INET, SOCK_STREAM, 0);
+        socket_fd = ::socket(AF_INET, SOCK_STREAM, 0);
         if(-1 == socket_fd) {
-            throw std::string("Socket create failed: ") + strerror(errno);
+            throw std::string("TCP Socket create failed: ") + strerror(errno);
         }
     }
 
-    void TCP::Socket::connect(const std::string &ip, uint port) {
+    void TCP::Socket::connect(std::string ip, uint port) {
         // init struct
-        sockaddr_in addr;
-        memset(&addr, 0, sizeof(addr));
+        ::memset(&addr, 0, sizeof(addr));
         // find host ip by name through DNS service
         auto hpk = ::gethostbyname(ip.c_str());
         if(!hpk) {
@@ -29,57 +28,8 @@ namespace jrNetWork {
         }
     }
 
-    void TCP::Socket::connect(const std::string &ip, uint port, uint timeout) {
-        // init struct
-        sockaddr_in addr;
-        memset(&addr, 0, sizeof(addr));
-        // find host ip by name through DNS service
-        auto hpk = ::gethostbyname(ip.c_str());
-        if(!hpk) {
-            std::string msg = std::string("IP address parsing failed: ") + strerror(errno);
-            throw msg;
-        }
-        // fill the struct
-        addr.sin_family = AF_INET;		// protocol
-        addr.sin_addr.s_addr = inet_addr(inet_ntoa(*(in_addr *)(hpk->h_addr_list[0])));		// server IP
-        addr.sin_port = htons(port);		// target process port number
-        // Set connect non-blocking
-        int flag = fcntl(socket_fd, F_GETFL);
-        flag |= O_NONBLOCK;
-        fcntl(socket_fd, F_SETFL, flag);
-        // connect
-        if(-1 == ::connect(socket_fd, reinterpret_cast<sockaddr*>(&addr), sizeof(addr))) {
-            if(errno!=EINTR && errno!=EINPROGRESS) {
-                ::close(socket_fd);
-                throw std::string("Connect failed: ") + strerror(errno);
-            }
-        }
-        // Check connection is OK(NON-BLOCKING Mode)
-        fd_set rset, wset;
-        timeval tval;
-        FD_ZERO(&rset);
-        FD_ZERO(&wset);
-        FD_SET(socket_fd, &rset);
-        FD_SET(socket_fd, &wset);
-        tval.tv_sec = timeout;
-        tval.tv_usec = 0;
-        flag = select(socket_fd+1, &rset, &wset, NULL, &tval);
-        if(flag == -1) {
-            throw std::string("Connect failed: ") + strerror(errno);
-        } else if(flag == 0) {
-            throw std::string("Connect timeout: ") + strerror(errno);
-        } else {
-            if (FD_ISSET(socket_fd, &rset) || FD_ISSET(socket_fd, &wset)) {
-                if(get_ip_from_socket().empty()) {
-                    throw std::string("Connect failed: ") + strerror(errno);
-                }
-            }
-        }
-    }
-
     void TCP::Socket::bind(uint port) {
-        sockaddr_in addr;
-        memset(&addr, 0, sizeof(sockaddr_in));
+        ::memset(&addr, 0, sizeof(sockaddr_in));
         addr.sin_family = AF_INET;
         addr.sin_port = htons(port);
         addr.sin_addr.s_addr = htonl(INADDR_ANY);
@@ -225,5 +175,66 @@ namespace jrNetWork {
 
     bool TCP::operator!=(const TCP::Socket& lhs, const TCP::Socket& rhs) {
         return !(lhs==rhs);
+    }
+
+    UDP::Socket::Socket() {
+        socket_fd = ::socket(AF_INET, SOCK_DGRAM, 0);
+        if(-1 == socket_fd) {
+            throw std::string("UDP Socket create failed: ") + strerror(errno);
+        }
+    }
+
+    void UDP::Socket::set_peer_info(std::string ip, uint port) {
+        auto hpk = ::gethostbyname(ip.c_str());
+        if(!hpk) {
+            std::string msg = std::string("IP address parsing failed: ") + strerror(errno);
+            throw msg;
+        }
+        ::memset(&peer_addr, 0, sizeof(sockaddr_in));
+        peer_addr.sin_family = AF_INET;
+        peer_addr.sin_port = htons(port);
+        peer_addr.sin_addr.s_addr = inet_addr(inet_ntoa(*(in_addr *)(hpk->h_addr_list[0])));
+    }
+
+    void UDP::Socket::bind(uint port) {
+        ::memset(&addr, 0, sizeof(sockaddr_in));
+        addr.sin_family = AF_INET;
+        addr.sin_port = htons(port);
+        addr.sin_addr.s_addr = htonl(INADDR_ANY);
+        if(-1 == ::bind(socket_fd, reinterpret_cast<sockaddr*>(&addr), sizeof(sockaddr_in))) {
+            throw std::string("Bind failed: ") + strerror(errno);
+        }
+    }
+
+    std::pair<std::string, bool> UDP::Socket::recvfrom(std::string ip, uint port, uint length) {
+        set_peer_info(ip, port);
+        char* data = new char[length];
+        if(-1 == ::recvfrom(socket_fd, data, length, 0, reinterpret_cast<sockaddr*>(&peer_addr), &peer_sz)) {
+            delete[] data;
+            return std::make_pair("", false);
+        }
+        std::string ret(data);
+        delete[] data;
+        return std::make_pair(ret, true);
+    }
+
+    bool UDP::Socket::sendto(std::string ip, uint port, std::string data) {
+        set_peer_info(ip, port);
+        int length = data.length();
+        const char* data_c = data.c_str();
+        for(int size = 0; size < length; ) {
+            int flag = ::sendto(socket_fd, data_c+size, length-size, 0, reinterpret_cast<sockaddr*>(&peer_addr), peer_sz);
+            if(flag == -1) {
+                if(errno != EINTR) {
+                    return false;
+                } else {
+                    continue;
+                }
+            } else if(flag == 0) {
+                break;
+            }
+            size += flag;
+        }
+        return true;
     }
 }

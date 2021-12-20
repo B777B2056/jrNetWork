@@ -15,7 +15,7 @@ namespace jrHTTP {
         using hash_map = std::unordered_map<std::string, std::string>;
 
     private:
-        jrNetWork::EventDispatch<jrNetWork::IO_Model_POLL> dispatch;
+        jrNetWork::EventDispatch<jrNetWork::IO_Model_EPOLL> dispatch;
         hash_map ret_head_table;
         const std::string HTTP_Version;
         const std::string file_mapping_path;
@@ -37,8 +37,7 @@ namespace jrHTTP {
 
     public:
         /* Init network connection */
-        HTTPServer(uint port, std::string path, std::string work_directory,
-                   uint max_task_num, uint max_pool_size = std::thread::hardware_concurrency());
+        HTTPServer(uint port, std::string path, uint max_task_num, uint max_pool_size = std::thread::hardware_concurrency());
         /* Add return data line 's key-value pair */
         void add_ret_line(std::string key, std::string value);
         /* Start RPC server */

@@ -9,7 +9,9 @@
 #include <cstdlib>
 #include <fstream>
 #include <sstream>
+#include <exception>
 #include <unistd.h>
+#include <sys/stat.h>
 
 /* Print log with level */
 #define LOG(level, msg) \

@@ -14,7 +14,7 @@ namespace jrRPC {
     private:
         using function_json = std::function<json(const json&)>;
         /* TCP Server API */
-        jrNetWork::EventDispatch dispatch;
+        jrNetWork::EventDispatch<jrNetWork::IO_Model_EPOLL> dispatch;
         /* Function list */
         std::map<std::string, function_json> func_list;
 

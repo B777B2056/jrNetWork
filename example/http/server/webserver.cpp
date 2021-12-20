@@ -5,9 +5,9 @@ namespace jrHTTP {
                                                                      {400, "Bad Request"}, {404, "Not Found"},
                                                                      {500, "Internal Server Error"}, {501, "Not Implemented"}};
 
-    HTTPServer::HTTPServer(uint port, std::string path, std::string work_directory, uint max_task_num, uint max_pool_size)
+    HTTPServer::HTTPServer(uint port, std::string path, uint max_task_num, uint max_pool_size)
         : dispatch(port, max_task_num, max_pool_size, path),
-          HTTP_Version("HTTP/1.0"), file_mapping_path(work_directory) {
+          HTTP_Version("HTTP/1.0"), file_mapping_path(std::string(__FILE__).substr(0, std::string(__FILE__).find_last_of('/'))+"/source") {
         /* Init response header */
         add_ret_line("Server", "jrHTTP");
 //        add_ret_line("Connection", "close");   // Default setting: close TCP connection

@@ -4,18 +4,23 @@ namespace jrNetWork {
     std::string logger_path;
 
     Logger::Logger() {
+        if(-1 == ::access(logger_path.c_str(), 0)) {
+            if(-1 == ::mkdir(logger_path.c_str(), S_IRWXU)) {
+                throw std::runtime_error("Logger path create FAILED.");
+            }
+        }
         filename_base = logger_path + "process"+get_current_process_id()+"_"+get_current_time()+"_";
         fatal.open(filename_base + "Fatal.log", std::ios::out | std::ios::app);
         if(!fatal.is_open()) {
-            throw "Fatal logger file create FAILED.";
+            throw std::runtime_error("Fatal logger file create FAILED.");
         }
         warning.open(filename_base + "Warning.log", std::ios::out | std::ios::app);
         if(!warning.is_open()) {
-            throw "Warning logger file create FAILED.";
+            throw std::runtime_error("Warning logger file create FAILED.");
         }
         notice.open(filename_base + "Notice.log", std::ios::out | std::ios::app);
         if(!notice.is_open()) {
-            throw "Notice logger file create FAILED.";
+            throw std::runtime_error("Notice logger file create FAILED.");
         }
     }
 

@@ -1,0 +1,3 @@
+/home/df4b6266/Programs/jrNetWork/example/rpc/client/CMakeFiles/rebuild_cache.dir
+/home/df4b6266/Programs/jrNetWork/example/rpc/client/CMakeFiles/edit_cache.dir
+/home/df4b6266/Programs/jrNetWork/example/rpc/client/CMakeFiles/jr_rpc_client.dir
