@@ -1,8 +1,8 @@
 #include "timer.hpp"
 
 namespace jrNetWork {
-    Timer::Timer(std::shared_ptr<TCP::Socket> client, uint timeout,
-                 const std::function<void(std::shared_ptr<TCP::Socket>)>& th)
+    Timer::Timer(std::shared_ptr<TCP::ClientSocket> client, uint timeout,
+                 const std::function<void(std::shared_ptr<TCP::ClientSocket>)>& th)
         : client(client), timeout_handler(th) {
         /* Set time */
          running_time = std::chrono::steady_clock::now()
@@ -25,8 +25,8 @@ namespace jrNetWork {
         return !operator==(t);
     }
 
-    void TimerContainer::add_timer(std::shared_ptr<TCP::Socket> client, uint timeout,
-                                   const std::function<void(std::shared_ptr<TCP::Socket>)>& th) {
+    void TimerContainer::add_timer(std::shared_ptr<TCP::ClientSocket> client, uint timeout,
+                                   const std::function<void(std::shared_ptr<TCP::ClientSocket>)>& th) {
         container.emplace(client, timeout, th);
     }
 

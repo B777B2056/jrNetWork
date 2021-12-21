@@ -1,7 +1,6 @@
 cmake_minimum_required(VERSION 3.5)
-
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "../../../bin")
 project(jr_rpc_client LANGUAGES CXX)
-
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 find_package(nlohmann_json 3.2.0 REQUIRED)

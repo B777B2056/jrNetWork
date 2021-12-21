@@ -14,8 +14,8 @@
 #include <signal.h>
 
 namespace jrNetWork {
-    using TaskHandlerType = std::function<void(std::shared_ptr<TCP::Socket>)>;
-    using TimeoutHandlerType = std::function<void(std::shared_ptr<TCP::Socket>)>;
+    using TaskHandlerType = std::function<void(std::shared_ptr<TCP::ClientSocket>)>;
+    using TimeoutHandlerType = std::function<void(std::shared_ptr<TCP::ClientSocket>)>;
 
     std::string error_handle(std::string msg);
 
@@ -35,11 +35,11 @@ namespace jrNetWork {
 
     private:
         MultiplexerBase<iomodel>* multiplexer;
-        std::map<int, std::shared_ptr<TCP::Socket>> fd_socket_table;
+        std::map<int, std::shared_ptr<TCP::ClientSocket>> fd_socket_table;
         /* Unified event source */
         UnifiedEventSource ues;
         /* TCP socket object */
-        std::shared_ptr<TCP::Socket> socket;
+        std::shared_ptr<TCP::ServerSocket> socket;
         /* Timer heap */
         TimerContainer tc;
         /* Thread pool */
@@ -80,7 +80,7 @@ namespace jrNetWork {
 
     template<typename iomodel>
     EventDispatch<iomodel>::EventDispatch(uint port, uint max_task_num, uint max_pool_size, std::string path)
-        : socket(std::make_shared<TCP::Socket>(TCP::Socket::IO_NONBLOCKING)),
+        : socket(std::make_shared<TCP::ServerSocket>(TCP::ServerSocket::IO_NONBLOCKING)),
           thread_pool(max_task_num, max_pool_size) {
         jrNetWork::logger_path = path;
         ctor(max_task_num, std::integral_constant<bool, std::is_same<iomodel, IO_Model_POLL>::value>());
@@ -92,7 +92,7 @@ namespace jrNetWork {
             throw msg;
         }
         fd_socket_table.clear();
-        timeout_handler = [](std::shared_ptr<TCP::Socket> client)->void
+        timeout_handler = [](std::shared_ptr<TCP::ClientSocket> client)->void
                           {
                             client->disconnect();
                           };
@@ -120,7 +120,7 @@ namespace jrNetWork {
         auto event_handler_bind = std::bind(std::forward<F>(handler),
                                             std::forward<Args>(args)...,
                                             std::placeholders::_1);
-        task_handler = [event_handler_bind](std::shared_ptr<jrNetWork::TCP::Socket> client)->void
+        task_handler = [event_handler_bind](std::shared_ptr<jrNetWork::TCP::ClientSocket> client)->void
                        {
                             event_handler_bind(client);
                        };
@@ -132,7 +132,7 @@ namespace jrNetWork {
         auto handler_bind = std::bind(std::forward<F>(handler),
                                       std::forward<Args>(args)...,
                                       std::placeholders::_1);
-        timeout_handler = [handler_bind](std::shared_ptr<TCP::Socket> client)->void
+        timeout_handler = [handler_bind](std::shared_ptr<TCP::ClientSocket> client)->void
                           {
                               handler_bind(client);
                           };
@@ -182,7 +182,7 @@ namespace jrNetWork {
     template<typename iomodel>
     void EventDispatch<iomodel>::accept_handle(uint timeout_period_sec) {
         /* Accept connection */
-        std::shared_ptr<TCP::Socket> client = socket->accept();
+        std::shared_ptr<TCP::ClientSocket> client = socket->accept();
         /* Register client into epoll */
         if(!client) {
             LOG(Logger::Level::WARNING, jrNetWork::error_handle("Connection accept failed: "));

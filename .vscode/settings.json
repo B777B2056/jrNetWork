@@ -51,6 +51,11 @@
         "tuple": "cpp",
         "type_traits": "cpp",
         "typeinfo": "cpp",
-        "utility": "cpp"
+        "utility": "cpp",
+        "codecvt": "cpp",
+        "cstddef": "cpp",
+        "forward_list": "cpp",
+        "numeric": "cpp",
+        "valarray": "cpp"
     }
 }

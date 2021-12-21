@@ -9,7 +9,7 @@ namespace jrRPC {
     class RPCClient {
     public:
         using json = nlohmann::json;
-        jrNetWork::TCP::Socket socket;
+        jrNetWork::TCP::ClientSocket socket;
 
     private:
         template<typename T>

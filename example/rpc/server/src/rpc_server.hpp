@@ -27,7 +27,7 @@ namespace jrRPC {
         /* Deserialization a received string */
         std::pair<std::string, json> deserialization(const std::string& json_str);
         /* Stub */
-        void stub(std::shared_ptr<jrNetWork::TCP::Socket> client);
+        void stub(std::shared_ptr<jrNetWork::TCP::ClientSocket> client);
 
     public:
         /* Init network connection */
@@ -102,7 +102,7 @@ namespace jrRPC {
         return std::make_pair(json_data.at("name").get<std::string>(), json_data.at("parameters"));
     }
 
-    void RPCServer::stub(std::shared_ptr<jrNetWork::TCP::Socket> client) {
+    void RPCServer::stub(std::shared_ptr<jrNetWork::TCP::ClientSocket> client) {
         /* Protocol analysis */
         std::string recv_str;
         auto result = client->recv(1);

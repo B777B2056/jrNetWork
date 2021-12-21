@@ -15,28 +15,28 @@ The CXX compiler identification is Clang, found in "/home/df4b6266/Programs/jrNe
 Determining if the CXX compiler works passed with the following output:
 Change Dir: /home/df4b6266/Programs/jrNetWork/example/rpc/server/CMakeFiles/CMakeTmp
 
-Run Build Command:"/usr/bin/make" "cmTC_04ae8/fast"
-/usr/bin/make -f CMakeFiles/cmTC_04ae8.dir/build.make CMakeFiles/cmTC_04ae8.dir/build
+Run Build Command:"/usr/bin/make" "cmTC_4571e/fast"
+/usr/bin/make -f CMakeFiles/cmTC_4571e.dir/build.make CMakeFiles/cmTC_4571e.dir/build
 make[1]: Entering directory '/home/df4b6266/Programs/jrNetWork/example/rpc/server/CMakeFiles/CMakeTmp'
-Building CXX object CMakeFiles/cmTC_04ae8.dir/testCXXCompiler.cxx.o
-/usr/bin/c++     -o CMakeFiles/cmTC_04ae8.dir/testCXXCompiler.cxx.o -c /home/df4b6266/Programs/jrNetWork/example/rpc/server/CMakeFiles/CMakeTmp/testCXXCompiler.cxx
-Linking CXX executable cmTC_04ae8
-/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_04ae8.dir/link.txt --verbose=1
-/usr/bin/c++       CMakeFiles/cmTC_04ae8.dir/testCXXCompiler.cxx.o  -o cmTC_04ae8 
+Building CXX object CMakeFiles/cmTC_4571e.dir/testCXXCompiler.cxx.o
+/usr/bin/c++     -o CMakeFiles/cmTC_4571e.dir/testCXXCompiler.cxx.o -c /home/df4b6266/Programs/jrNetWork/example/rpc/server/CMakeFiles/CMakeTmp/testCXXCompiler.cxx
+Linking CXX executable cmTC_4571e
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_4571e.dir/link.txt --verbose=1
+/usr/bin/c++       CMakeFiles/cmTC_4571e.dir/testCXXCompiler.cxx.o  -o cmTC_4571e 
 make[1]: Leaving directory '/home/df4b6266/Programs/jrNetWork/example/rpc/server/CMakeFiles/CMakeTmp'
 
 
 Detecting CXX compiler ABI info compiled with the following output:
 Change Dir: /home/df4b6266/Programs/jrNetWork/example/rpc/server/CMakeFiles/CMakeTmp
 
-Run Build Command:"/usr/bin/make" "cmTC_fa97e/fast"
-/usr/bin/make -f CMakeFiles/cmTC_fa97e.dir/build.make CMakeFiles/cmTC_fa97e.dir/build
+Run Build Command:"/usr/bin/make" "cmTC_bdbcf/fast"
+/usr/bin/make -f CMakeFiles/cmTC_bdbcf.dir/build.make CMakeFiles/cmTC_bdbcf.dir/build
 make[1]: Entering directory '/home/df4b6266/Programs/jrNetWork/example/rpc/server/CMakeFiles/CMakeTmp'
-Building CXX object CMakeFiles/cmTC_fa97e.dir/CMakeCXXCompilerABI.cpp.o
-/usr/bin/c++     -o CMakeFiles/cmTC_fa97e.dir/CMakeCXXCompilerABI.cpp.o -c /usr/share/cmake-3.10/Modules/CMakeCXXCompilerABI.cpp
-Linking CXX executable cmTC_fa97e
-/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_fa97e.dir/link.txt --verbose=1
-/usr/bin/c++      -v CMakeFiles/cmTC_fa97e.dir/CMakeCXXCompilerABI.cpp.o  -o cmTC_fa97e 
+Building CXX object CMakeFiles/cmTC_bdbcf.dir/CMakeCXXCompilerABI.cpp.o
+/usr/bin/c++     -o CMakeFiles/cmTC_bdbcf.dir/CMakeCXXCompilerABI.cpp.o -c /usr/share/cmake-3.10/Modules/CMakeCXXCompilerABI.cpp
+Linking CXX executable cmTC_bdbcf
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_bdbcf.dir/link.txt --verbose=1
+/usr/bin/c++      -v CMakeFiles/cmTC_bdbcf.dir/CMakeCXXCompilerABI.cpp.o  -o cmTC_bdbcf 
 clang version 6.0.0-1ubuntu2 (tags/RELEASE_600/final)
 Target: x86_64-pc-linux-gnu
 Thread model: posix
@@ -52,7 +52,7 @@ Found candidate GCC installation: /usr/lib/gcc/x86_64-linux-gnu/8
 Selected GCC installation: /usr/bin/../lib/gcc/x86_64-linux-gnu/11
 Candidate multilib: .;@m64
 Selected multilib: .;@m64
- "/usr/bin/ld" -z relro --hash-style=gnu --eh-frame-hdr -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -o cmTC_fa97e /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../x86_64-linux-gnu/crt1.o /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../x86_64-linux-gnu/crti.o /usr/bin/../lib/gcc/x86_64-linux-gnu/11/crtbegin.o -L/usr/bin/../lib/gcc/x86_64-linux-gnu/11 -L/usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../x86_64-linux-gnu -L/lib/x86_64-linux-gnu -L/lib/../lib64 -L/usr/lib/x86_64-linux-gnu -L/usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../.. -L/usr/lib/llvm-6.0/bin/../lib -L/lib -L/usr/lib CMakeFiles/cmTC_fa97e.dir/CMakeCXXCompilerABI.cpp.o -lstdc++ -lm -lgcc_s -lgcc -lc -lgcc_s -lgcc /usr/bin/../lib/gcc/x86_64-linux-gnu/11/crtend.o /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../x86_64-linux-gnu/crtn.o
+ "/usr/bin/ld" -z relro --hash-style=gnu --eh-frame-hdr -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -o cmTC_bdbcf /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../x86_64-linux-gnu/crt1.o /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../x86_64-linux-gnu/crti.o /usr/bin/../lib/gcc/x86_64-linux-gnu/11/crtbegin.o -L/usr/bin/../lib/gcc/x86_64-linux-gnu/11 -L/usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../x86_64-linux-gnu -L/lib/x86_64-linux-gnu -L/lib/../lib64 -L/usr/lib/x86_64-linux-gnu -L/usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../.. -L/usr/lib/llvm-6.0/bin/../lib -L/lib -L/usr/lib CMakeFiles/cmTC_bdbcf.dir/CMakeCXXCompilerABI.cpp.o -lstdc++ -lm -lgcc_s -lgcc -lc -lgcc_s -lgcc /usr/bin/../lib/gcc/x86_64-linux-gnu/11/crtend.o /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../x86_64-linux-gnu/crtn.o
 make[1]: Leaving directory '/home/df4b6266/Programs/jrNetWork/example/rpc/server/CMakeFiles/CMakeTmp'
 
 
@@ -60,14 +60,14 @@ Parsed CXX implicit link information from above output:
   link line regex: [^( *|.*[/\])(ld|CMAKE_LINK_STARTFILE-NOTFOUND|([^/\]+-)?ld|collect2)[^/\]*( |$)]
   ignore line: [Change Dir: /home/df4b6266/Programs/jrNetWork/example/rpc/server/CMakeFiles/CMakeTmp]
   ignore line: []
-  ignore line: [Run Build Command:"/usr/bin/make" "cmTC_fa97e/fast"]
-  ignore line: [/usr/bin/make -f CMakeFiles/cmTC_fa97e.dir/build.make CMakeFiles/cmTC_fa97e.dir/build]
+  ignore line: [Run Build Command:"/usr/bin/make" "cmTC_bdbcf/fast"]
+  ignore line: [/usr/bin/make -f CMakeFiles/cmTC_bdbcf.dir/build.make CMakeFiles/cmTC_bdbcf.dir/build]
   ignore line: [make[1]: Entering directory '/home/df4b6266/Programs/jrNetWork/example/rpc/server/CMakeFiles/CMakeTmp']
-  ignore line: [Building CXX object CMakeFiles/cmTC_fa97e.dir/CMakeCXXCompilerABI.cpp.o]
-  ignore line: [/usr/bin/c++     -o CMakeFiles/cmTC_fa97e.dir/CMakeCXXCompilerABI.cpp.o -c /usr/share/cmake-3.10/Modules/CMakeCXXCompilerABI.cpp]
-  ignore line: [Linking CXX executable cmTC_fa97e]
-  ignore line: [/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_fa97e.dir/link.txt --verbose=1]
-  ignore line: [/usr/bin/c++      -v CMakeFiles/cmTC_fa97e.dir/CMakeCXXCompilerABI.cpp.o  -o cmTC_fa97e ]
+  ignore line: [Building CXX object CMakeFiles/cmTC_bdbcf.dir/CMakeCXXCompilerABI.cpp.o]
+  ignore line: [/usr/bin/c++     -o CMakeFiles/cmTC_bdbcf.dir/CMakeCXXCompilerABI.cpp.o -c /usr/share/cmake-3.10/Modules/CMakeCXXCompilerABI.cpp]
+  ignore line: [Linking CXX executable cmTC_bdbcf]
+  ignore line: [/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_bdbcf.dir/link.txt --verbose=1]
+  ignore line: [/usr/bin/c++      -v CMakeFiles/cmTC_bdbcf.dir/CMakeCXXCompilerABI.cpp.o  -o cmTC_bdbcf ]
   ignore line: [clang version 6.0.0-1ubuntu2 (tags/RELEASE_600/final)]
   ignore line: [Target: x86_64-pc-linux-gnu]
   ignore line: [Thread model: posix]
@@ -85,7 +85,7 @@ Parsed CXX implicit link information from above output:
   ignore line: [@m64]
   ignore line: [Selected multilib: .]
   ignore line: [@m64]
-  link line: [ "/usr/bin/ld" -z relro --hash-style=gnu --eh-frame-hdr -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -o cmTC_fa97e /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../x86_64-linux-gnu/crt1.o /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../x86_64-linux-gnu/crti.o /usr/bin/../lib/gcc/x86_64-linux-gnu/11/crtbegin.o -L/usr/bin/../lib/gcc/x86_64-linux-gnu/11 -L/usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../x86_64-linux-gnu -L/lib/x86_64-linux-gnu -L/lib/../lib64 -L/usr/lib/x86_64-linux-gnu -L/usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../.. -L/usr/lib/llvm-6.0/bin/../lib -L/lib -L/usr/lib CMakeFiles/cmTC_fa97e.dir/CMakeCXXCompilerABI.cpp.o -lstdc++ -lm -lgcc_s -lgcc -lc -lgcc_s -lgcc /usr/bin/../lib/gcc/x86_64-linux-gnu/11/crtend.o /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../x86_64-linux-gnu/crtn.o]
+  link line: [ "/usr/bin/ld" -z relro --hash-style=gnu --eh-frame-hdr -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -o cmTC_bdbcf /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../x86_64-linux-gnu/crt1.o /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../x86_64-linux-gnu/crti.o /usr/bin/../lib/gcc/x86_64-linux-gnu/11/crtbegin.o -L/usr/bin/../lib/gcc/x86_64-linux-gnu/11 -L/usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../x86_64-linux-gnu -L/lib/x86_64-linux-gnu -L/lib/../lib64 -L/usr/lib/x86_64-linux-gnu -L/usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../.. -L/usr/lib/llvm-6.0/bin/../lib -L/lib -L/usr/lib CMakeFiles/cmTC_bdbcf.dir/CMakeCXXCompilerABI.cpp.o -lstdc++ -lm -lgcc_s -lgcc -lc -lgcc_s -lgcc /usr/bin/../lib/gcc/x86_64-linux-gnu/11/crtend.o /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../x86_64-linux-gnu/crtn.o]
     arg [/usr/bin/ld] ==> ignore
     arg [-zrelro] ==> ignore
     arg [--hash-style=gnu] ==> ignore
@@ -95,7 +95,7 @@ Parsed CXX implicit link information from above output:
     arg [-dynamic-linker] ==> ignore
     arg [/lib64/ld-linux-x86-64.so.2] ==> ignore
     arg [-o] ==> ignore
-    arg [cmTC_fa97e] ==> ignore
+    arg [cmTC_bdbcf] ==> ignore
     arg [/usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../x86_64-linux-gnu/crt1.o] ==> ignore
     arg [/usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../x86_64-linux-gnu/crti.o] ==> ignore
     arg [/usr/bin/../lib/gcc/x86_64-linux-gnu/11/crtbegin.o] ==> ignore
@@ -108,7 +108,7 @@ Parsed CXX implicit link information from above output:
     arg [-L/usr/lib/llvm-6.0/bin/../lib] ==> dir [/usr/lib/llvm-6.0/bin/../lib]
     arg [-L/lib] ==> dir [/lib]
     arg [-L/usr/lib] ==> dir [/usr/lib]
-    arg [CMakeFiles/cmTC_fa97e.dir/CMakeCXXCompilerABI.cpp.o] ==> ignore
+    arg [CMakeFiles/cmTC_bdbcf.dir/CMakeCXXCompilerABI.cpp.o] ==> ignore
     arg [-lstdc++] ==> lib [stdc++]
     arg [-lm] ==> lib [m]
     arg [-lgcc_s] ==> lib [gcc_s]
@@ -137,14 +137,14 @@ Parsed CXX implicit link information from above output:
 Detecting CXX [-std=c++1z] compiler features compiled with the following output:
 Change Dir: /home/df4b6266/Programs/jrNetWork/example/rpc/server/CMakeFiles/CMakeTmp
 
-Run Build Command:"/usr/bin/make" "cmTC_2203f/fast"
-/usr/bin/make -f CMakeFiles/cmTC_2203f.dir/build.make CMakeFiles/cmTC_2203f.dir/build
+Run Build Command:"/usr/bin/make" "cmTC_83811/fast"
+/usr/bin/make -f CMakeFiles/cmTC_83811.dir/build.make CMakeFiles/cmTC_83811.dir/build
 make[1]: Entering directory '/home/df4b6266/Programs/jrNetWork/example/rpc/server/CMakeFiles/CMakeTmp'
-Building CXX object CMakeFiles/cmTC_2203f.dir/feature_tests.cxx.o
-/usr/bin/c++    -std=c++1z -o CMakeFiles/cmTC_2203f.dir/feature_tests.cxx.o -c /home/df4b6266/Programs/jrNetWork/example/rpc/server/CMakeFiles/feature_tests.cxx
-Linking CXX executable cmTC_2203f
-/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_2203f.dir/link.txt --verbose=1
-/usr/bin/c++       CMakeFiles/cmTC_2203f.dir/feature_tests.cxx.o  -o cmTC_2203f 
+Building CXX object CMakeFiles/cmTC_83811.dir/feature_tests.cxx.o
+/usr/bin/c++    -std=c++1z -o CMakeFiles/cmTC_83811.dir/feature_tests.cxx.o -c /home/df4b6266/Programs/jrNetWork/example/rpc/server/CMakeFiles/feature_tests.cxx
+Linking CXX executable cmTC_83811
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_83811.dir/link.txt --verbose=1
+/usr/bin/c++       CMakeFiles/cmTC_83811.dir/feature_tests.cxx.o  -o cmTC_83811 
 make[1]: Leaving directory '/home/df4b6266/Programs/jrNetWork/example/rpc/server/CMakeFiles/CMakeTmp'
 
 
@@ -210,14 +210,14 @@ make[1]: Leaving directory '/home/df4b6266/Programs/jrNetWork/example/rpc/server
 Detecting CXX [-std=c++14] compiler features compiled with the following output:
 Change Dir: /home/df4b6266/Programs/jrNetWork/example/rpc/server/CMakeFiles/CMakeTmp
 
-Run Build Command:"/usr/bin/make" "cmTC_c8b0d/fast"
-/usr/bin/make -f CMakeFiles/cmTC_c8b0d.dir/build.make CMakeFiles/cmTC_c8b0d.dir/build
+Run Build Command:"/usr/bin/make" "cmTC_59f99/fast"
+/usr/bin/make -f CMakeFiles/cmTC_59f99.dir/build.make CMakeFiles/cmTC_59f99.dir/build
 make[1]: Entering directory '/home/df4b6266/Programs/jrNetWork/example/rpc/server/CMakeFiles/CMakeTmp'
-Building CXX object CMakeFiles/cmTC_c8b0d.dir/feature_tests.cxx.o
-/usr/bin/c++    -std=c++14 -o CMakeFiles/cmTC_c8b0d.dir/feature_tests.cxx.o -c /home/df4b6266/Programs/jrNetWork/example/rpc/server/CMakeFiles/feature_tests.cxx
-Linking CXX executable cmTC_c8b0d
-/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_c8b0d.dir/link.txt --verbose=1
-/usr/bin/c++       CMakeFiles/cmTC_c8b0d.dir/feature_tests.cxx.o  -o cmTC_c8b0d 
+Building CXX object CMakeFiles/cmTC_59f99.dir/feature_tests.cxx.o
+/usr/bin/c++    -std=c++14 -o CMakeFiles/cmTC_59f99.dir/feature_tests.cxx.o -c /home/df4b6266/Programs/jrNetWork/example/rpc/server/CMakeFiles/feature_tests.cxx
+Linking CXX executable cmTC_59f99
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_59f99.dir/link.txt --verbose=1
+/usr/bin/c++       CMakeFiles/cmTC_59f99.dir/feature_tests.cxx.o  -o cmTC_59f99 
 make[1]: Leaving directory '/home/df4b6266/Programs/jrNetWork/example/rpc/server/CMakeFiles/CMakeTmp'
 
 
@@ -283,14 +283,14 @@ make[1]: Leaving directory '/home/df4b6266/Programs/jrNetWork/example/rpc/server
 Detecting CXX [-std=c++11] compiler features compiled with the following output:
 Change Dir: /home/df4b6266/Programs/jrNetWork/example/rpc/server/CMakeFiles/CMakeTmp
 
-Run Build Command:"/usr/bin/make" "cmTC_e1e6e/fast"
-/usr/bin/make -f CMakeFiles/cmTC_e1e6e.dir/build.make CMakeFiles/cmTC_e1e6e.dir/build
+Run Build Command:"/usr/bin/make" "cmTC_ac764/fast"
+/usr/bin/make -f CMakeFiles/cmTC_ac764.dir/build.make CMakeFiles/cmTC_ac764.dir/build
 make[1]: Entering directory '/home/df4b6266/Programs/jrNetWork/example/rpc/server/CMakeFiles/CMakeTmp'
-Building CXX object CMakeFiles/cmTC_e1e6e.dir/feature_tests.cxx.o
-/usr/bin/c++    -std=c++11 -o CMakeFiles/cmTC_e1e6e.dir/feature_tests.cxx.o -c /home/df4b6266/Programs/jrNetWork/example/rpc/server/CMakeFiles/feature_tests.cxx
-Linking CXX executable cmTC_e1e6e
-/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_e1e6e.dir/link.txt --verbose=1
-/usr/bin/c++       CMakeFiles/cmTC_e1e6e.dir/feature_tests.cxx.o  -o cmTC_e1e6e 
+Building CXX object CMakeFiles/cmTC_ac764.dir/feature_tests.cxx.o
+/usr/bin/c++    -std=c++11 -o CMakeFiles/cmTC_ac764.dir/feature_tests.cxx.o -c /home/df4b6266/Programs/jrNetWork/example/rpc/server/CMakeFiles/feature_tests.cxx
+Linking CXX executable cmTC_ac764
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_ac764.dir/link.txt --verbose=1
+/usr/bin/c++       CMakeFiles/cmTC_ac764.dir/feature_tests.cxx.o  -o cmTC_ac764 
 make[1]: Leaving directory '/home/df4b6266/Programs/jrNetWork/example/rpc/server/CMakeFiles/CMakeTmp'
 
 
@@ -356,14 +356,14 @@ make[1]: Leaving directory '/home/df4b6266/Programs/jrNetWork/example/rpc/server
 Detecting CXX [-std=c++98] compiler features compiled with the following output:
 Change Dir: /home/df4b6266/Programs/jrNetWork/example/rpc/server/CMakeFiles/CMakeTmp
 
-Run Build Command:"/usr/bin/make" "cmTC_7cf57/fast"
-/usr/bin/make -f CMakeFiles/cmTC_7cf57.dir/build.make CMakeFiles/cmTC_7cf57.dir/build
+Run Build Command:"/usr/bin/make" "cmTC_135cb/fast"
+/usr/bin/make -f CMakeFiles/cmTC_135cb.dir/build.make CMakeFiles/cmTC_135cb.dir/build
 make[1]: Entering directory '/home/df4b6266/Programs/jrNetWork/example/rpc/server/CMakeFiles/CMakeTmp'
-Building CXX object CMakeFiles/cmTC_7cf57.dir/feature_tests.cxx.o
-/usr/bin/c++    -std=c++98 -o CMakeFiles/cmTC_7cf57.dir/feature_tests.cxx.o -c /home/df4b6266/Programs/jrNetWork/example/rpc/server/CMakeFiles/feature_tests.cxx
-Linking CXX executable cmTC_7cf57
-/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_7cf57.dir/link.txt --verbose=1
-/usr/bin/c++       CMakeFiles/cmTC_7cf57.dir/feature_tests.cxx.o  -o cmTC_7cf57 
+Building CXX object CMakeFiles/cmTC_135cb.dir/feature_tests.cxx.o
+/usr/bin/c++    -std=c++98 -o CMakeFiles/cmTC_135cb.dir/feature_tests.cxx.o -c /home/df4b6266/Programs/jrNetWork/example/rpc/server/CMakeFiles/feature_tests.cxx
+Linking CXX executable cmTC_135cb
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_135cb.dir/link.txt --verbose=1
+/usr/bin/c++       CMakeFiles/cmTC_135cb.dir/feature_tests.cxx.o  -o cmTC_135cb 
 make[1]: Leaving directory '/home/df4b6266/Programs/jrNetWork/example/rpc/server/CMakeFiles/CMakeTmp'
 
 

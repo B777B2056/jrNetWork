@@ -11,16 +11,16 @@ namespace jrNetWork {
     using time_type = std::chrono::time_point<std::chrono::steady_clock>;
 
     namespace TCP {
-        class Socket;
+        class ClientSocket;
     }
 
     /* Timer */
     struct Timer {
-        std::shared_ptr<TCP::Socket> client;
+        std::shared_ptr<TCP::ClientSocket> client;
         time_type running_time;    // program run time(absolute time)
-        std::function<void(std::shared_ptr<TCP::Socket>)> timeout_handler;    // handler
+        std::function<void(std::shared_ptr<TCP::ClientSocket>)> timeout_handler;    // handler
 
-        Timer(std::shared_ptr<TCP::Socket> client, uint timeout, const std::function<void(std::shared_ptr<TCP::Socket>)>& th);
+        Timer(std::shared_ptr<TCP::ClientSocket> client, uint timeout, const std::function<void(std::shared_ptr<TCP::ClientSocket>)>& th);
         bool operator<(const Timer& t) const;
         bool operator>(const Timer& t) const;
         bool operator==(const Timer& t) const;
@@ -40,8 +40,8 @@ namespace jrNetWork {
 
     public:
         /* Add a timer into container */
-        void add_timer(std::shared_ptr<TCP::Socket> client, uint timeout,
-                       const std::function<void(std::shared_ptr<TCP::Socket>)>& th);
+        void add_timer(std::shared_ptr<TCP::ClientSocket> client, uint timeout,
+                       const std::function<void(std::shared_ptr<TCP::ClientSocket>)>& th);
         /* Delte processed timer from container */
         void del_timer(const Timer&);
         /* Check timers in heap, exec timeout timer's handler */

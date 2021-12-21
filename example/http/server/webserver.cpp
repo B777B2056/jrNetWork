@@ -23,7 +23,7 @@ namespace jrHTTP {
         dispatch.event_loop(timeout_period_sec);
     }
 
-    void HTTPServer::http_handler(std::shared_ptr<jrNetWork::TCP::Socket> client) {
+    void HTTPServer::http_handler(std::shared_ptr<jrNetWork::TCP::ClientSocket> client) {
         int ret_code = 200;
         /* HTTP request; data */
         hash_map request_line_table;
@@ -146,7 +146,7 @@ namespace jrHTTP {
         }
     }
 
-    void HTTPServer::parser_request_line(std::shared_ptr<jrNetWork::TCP::Socket> client,
+    void HTTPServer::parser_request_line(std::shared_ptr<jrNetWork::TCP::ClientSocket> client,
                                          hash_map &request_line_table, int& ret_code) {
         enum State {START, METHOD, URL, VERSION, END, ERROR};
         State state = START;
@@ -218,7 +218,7 @@ namespace jrHTTP {
         }
     }
 
-    void HTTPServer::parser_request_head(std::shared_ptr<jrNetWork::TCP::Socket> client,
+    void HTTPServer::parser_request_head(std::shared_ptr<jrNetWork::TCP::ClientSocket> client,
                                          hash_map &request_head_table, int& ret_code) {
         enum State {START, KEY, VALUE, NEXT_LINE, LINE_END, END, ERROR};
         State state = START;
@@ -298,7 +298,7 @@ namespace jrHTTP {
         }
     }
 
-    void HTTPServer::parser_request_body(std::shared_ptr<jrNetWork::TCP::Socket> client,
+    void HTTPServer::parser_request_body(std::shared_ptr<jrNetWork::TCP::ClientSocket> client,
                                          int content_length, std::string &request_body) {
         while(content_length--) {
             auto recv = client->recv(1);

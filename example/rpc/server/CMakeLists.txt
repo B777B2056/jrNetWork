@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.5)
-
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "../../../bin")
 project(jr_rpc_server LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 14)
