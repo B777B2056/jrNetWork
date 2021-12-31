@@ -35,6 +35,7 @@ namespace jrNetWork {
     bool UnifiedEventSource::handle() {
         /* Handle signals */
         char sig[32];
+        bool is_time_out = false;
         memset(sig, 0, sizeof(sig));
         int num = read(uesfd[0], sig, sizeof(sig));
         if(num <= 0)
@@ -42,8 +43,8 @@ namespace jrNetWork {
         for(int i = 0; i < num; ++i) {
             switch(sig[i]) {
                 case SIGALRM:
-                    return true;    // timeout task
                     LOG(Logger::Level::WARNING, "Client connection timeout");
+                    is_time_out = true;    // timeout task
                     break;
                 case SIGTERM:
                 case SIGINT:    // Stop server
@@ -53,6 +54,6 @@ namespace jrNetWork {
                     break;
             }
         }
-        return false;
+        return is_time_out;
     }
 }

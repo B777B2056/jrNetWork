@@ -164,7 +164,7 @@ namespace jrNetWork {
     }
 
     std::shared_ptr<TCP::ClientSocket> TCP::ServerSocket::accept() {
-        int clientfd = ::accept4(socket_fd, NULL, NULL, blocking_flag==IO_NONBLOCKING ? SOCK_NONBLOCK : 0);
+        int clientfd = ::accept(socket_fd, NULL, NULL);
         if(-1 == clientfd) {
             return nullptr;
         }

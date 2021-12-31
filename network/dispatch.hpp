@@ -70,7 +70,7 @@ namespace jrNetWork {
         ~EventDispatch();
         /* Set event handler, the last argument must be client's TCPSocket object's reference */
         template<typename F, typename... Args>
-        void set_event_handler(F&& handler, Args&&... args);
+        void set_task_handler(F&& handler, Args&&... args);
         /* Set timeout handler(default timeout handler is closing timeout connection) */
         template<typename F, typename... Args>
         void set_timeout_handler(F&& handler, Args&&... args);
@@ -86,7 +86,7 @@ namespace jrNetWork {
         ctor(max_task_num, std::integral_constant<bool, std::is_same<iomodel, IO_Model_POLL>::value>());
         socket_init(port);
         // Register server socket
-        if(!multiplexer->regist_event(Event<iomodel>{UnifiedEventSource::uesfd[0], EventType::READ_IN})) {
+        if(!multiplexer->regist_event(make_event<iomodel>(UnifiedEventSource::uesfd[0], EventType::READ_IN))) {
             std::string msg = jrNetWork::error_handle("Unified Event Source regist failed");
             LOG(Logger::Level::FATAL, msg);
             throw msg;
@@ -116,13 +116,13 @@ namespace jrNetWork {
 
     template<typename iomodel>
     template<typename F, typename... Args>
-    void EventDispatch<iomodel>::set_event_handler(F&& handler, Args&&... args) {
-        auto event_handler_bind = std::bind(std::forward<F>(handler),
+    void EventDispatch<iomodel>::set_task_handler(F&& handler, Args&&... args) {
+        auto task_handler_bind = std::bind(std::forward<F>(handler),
                                             std::forward<Args>(args)...,
                                             std::placeholders::_1);
-        task_handler = [event_handler_bind](std::shared_ptr<jrNetWork::TCP::ClientSocket> client)->void
+        task_handler = [task_handler_bind](std::shared_ptr<jrNetWork::TCP::ClientSocket> client)->void
                        {
-                            event_handler_bind(client);
+                            task_handler_bind(client);
                        };
     }
 
@@ -156,12 +156,17 @@ namespace jrNetWork {
             }
             auto& events = multiplexer->get_event_list();
             for(int i = 0; i < event_n; ++i) {
-                if(multiplexer->is_connection_event(i)) {
-                    accept_handle(timeout_period_sec);
-                } else if(multiplexer->is_readable_event(i)) {
-                    event_handle(timeout_period_sec, events[i]);
-                } else if(multiplexer->is_writeable_event(i)) {
-                    buffer_handle(events[i]);
+                switch (multiplexer->get_incomming_task(i)) {
+                    case ACCEPTION:
+                        accept_handle(timeout_period_sec);
+                        break;
+                    case READABLE:
+                        event_handle(timeout_period_sec, events[i]);
+                        break;
+                    case WRITEABLE:
+                        buffer_handle(events[i]);
+                    default:
+                        break;
                 }
             }
         }
@@ -174,7 +179,7 @@ namespace jrNetWork {
         /* Listen target port */
         socket->listen();
         /* Regist into epoll model */
-        if(!multiplexer->set_listened(Event<iomodel>{socket->socket_fd, EventType::READ_IN})) {
+        if(!multiplexer->set_listened(make_event<iomodel>(socket->socket_fd, EventType::READ_IN))) {
             throw jrNetWork::error_handle("Regist socket failed");
         }
     }
@@ -188,7 +193,7 @@ namespace jrNetWork {
             LOG(Logger::Level::WARNING, jrNetWork::error_handle("Connection accept failed: "));
             return ;
         }
-        if(!multiplexer->regist_event(Event<iomodel>{client->socket_fd, EventType::READ_IN})) {
+        if(!multiplexer->regist_event(make_event<iomodel>(client->socket_fd, EventType::READ_IN))) {
             LOG(Logger::Level::WARNING, jrNetWork::error_handle("Connection epoll regist failed: "));
             return ;
         }
@@ -203,7 +208,7 @@ namespace jrNetWork {
         if(current.event == UnifiedEventSource::uesfd[0]) {
             if(ues.handle()) {
                 /* Handle timeout task */
-                tc.tick();  // Awake timer
+                tc.tick();  // Update the timer container, handle timeout clients
                 ::alarm(timeout_period_sec);  // Reset alarm
             }
         } else {
@@ -217,7 +222,7 @@ namespace jrNetWork {
                // it will be pushed into the buffer (completed by TCP::Socket),
                // and then register the EPOLLOUT event to wait for the next sending.
                if(!fd_socket_table[fd]->is_send_all()) {
-                   multiplexer->regist_event(Event<iomodel>{fd, EventType::WRITE_OUT});
+                   multiplexer->regist_event(make_event<iomodel>(fd, EventType::WRITE_OUT));
                }
             };
             /* Add task into thread pool */
@@ -239,7 +244,7 @@ namespace jrNetWork {
             if(pre_sent_size < pre_data.length()) {
                 fd_socket_table[client]->send_buffer.append(pre_data.begin(), pre_data.end());
             } else {
-                multiplexer->unregist_event(Event<iomodel>{client, EventType::WRITE_OUT});
+                multiplexer->unregist_event(make_event<iomodel>(client, EventType::WRITE_OUT));
             }
         }
     }

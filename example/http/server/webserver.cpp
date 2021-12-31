@@ -12,7 +12,7 @@ namespace jrHTTP {
         add_ret_line("Server", "jrHTTP");
 //        add_ret_line("Connection", "close");   // Default setting: close TCP connection
         /* Set http handler */
-        dispatch.set_event_handler(&HTTPServer::http_handler, this);
+        dispatch.set_task_handler(&HTTPServer::http_handler, this);
     }
 
     void HTTPServer::add_ret_line(std::string key, std::string value) {

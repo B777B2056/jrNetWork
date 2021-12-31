@@ -51,7 +51,7 @@ namespace jrRPC {
     RPCServer::RPCServer(uint port, std::string path, uint max_task_num, uint max_pool_size)
         : dispatch(port, max_task_num, max_pool_size, path) {
         /* Regist event handler */
-        dispatch.set_event_handler(&jrRPC::RPCServer::stub, this);
+        dispatch.set_task_handler(&jrRPC::RPCServer::stub, this);
     }
 
     /* ========================= Network ========================= */

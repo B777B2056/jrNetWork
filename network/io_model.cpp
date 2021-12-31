@@ -9,22 +9,18 @@ namespace jrNetWork {
         return regist_event(listen);
     }
 
-    bool MultiplexerPoll::is_connection_event(int index) const {
-        return (index == 0) && (event_list[index].type & POLLIN);
-    }
-
-    bool MultiplexerPoll::is_readable_event(int index) const {
-        if(event_list[index].event < 0)
-            return false;
-        else
-            return event_list[index].type & POLLIN;
-    }
-
-    bool MultiplexerPoll::is_writeable_event(int index) const {
-        if(event_list[index].event < 0)
-            return false;
-        else
-            return event_list[index].type & POLLOUT;
+    IncomingTask MultiplexerPoll::get_incomming_task(int index) const {
+        if(event_list[index].event < 0) {
+            return ERROR;
+        } else if((index == 0) && (event_list[index].type & POLLIN)) {
+            return ACCEPTION;
+        } else if(event_list[index].type & POLLIN) {
+            return READABLE;
+        } else if(event_list[index].type & POLLOUT) {
+            return WRITEABLE;
+        } else {
+            return ERROR;
+        }
     }
 
     bool MultiplexerPoll::regist_event(Event<IO_Model_POLL> event) {
@@ -68,16 +64,18 @@ namespace jrNetWork {
         return regist_event(listen);
     }
 
-    bool MultiplexerEpoll::is_connection_event(int index) const {
-        return event_list[index].event == listenfd;
-    }
-
-    bool MultiplexerEpoll::is_readable_event(int index) const {
-        return event_list[index].type & EPOLLIN;
-    }
-
-    bool MultiplexerEpoll::is_writeable_event(int index) const {
-        return event_list[index].type & EPOLLOUT;
+    IncomingTask MultiplexerEpoll::get_incomming_task(int index) const {
+        if(event_list[index].event < 0) {
+            return ERROR;
+        } else if(event_list[index].event == listenfd) {
+            return ACCEPTION;
+        } else if(event_list[index].type & EPOLLIN) {
+            return READABLE;
+        } else if(event_list[index].type & EPOLLOUT) {
+            return WRITEABLE;
+        } else {
+            return ERROR;
+        }
     }
 
     bool MultiplexerEpoll::regist_event(Event<IO_Model_EPOLL> event) {

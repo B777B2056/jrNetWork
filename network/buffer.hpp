@@ -4,7 +4,7 @@
 #include <string>
 
 namespace jrNetWork {
-    /* Buffer of recv */
+    /* Buffer */
     class Buffer {
     private:
         using uint = unsigned int;

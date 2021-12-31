@@ -12,6 +12,7 @@ namespace jrNetWork {
     class IO_Model_POLL : public IO_Model {};
     class IO_Model_EPOLL : public IO_Model {};
 
+    /* ============ Event ============ */
     template<typename model>
     struct EventType {};
 
@@ -30,6 +31,13 @@ namespace jrNetWork {
         int event;
         typename EventType<model>::Type type;
     };
+
+    template<typename model>
+    Event<model> make_event(int event, typename EventType<model>::Type type) {
+        return Event<model>{event, type};
+    }
+
+    /* ============ Event List ============ */
 
     template<typename model>
     class EventList {};
@@ -69,13 +77,14 @@ namespace jrNetWork {
         }
     };
 
+    /* ============ IO multiplexing ============ */
+    enum IncomingTask {ACCEPTION, READABLE, WRITEABLE, ERROR};
+
     template<typename model>
     struct MultiplexerBase {
         virtual ~MultiplexerBase() {}
         virtual bool set_listened(Event<model> listen) = 0;
-        virtual bool is_connection_event(int index) const = 0;
-        virtual bool is_readable_event(int index) const = 0;
-        virtual bool is_writeable_event(int index) const = 0;
+        virtual IncomingTask get_incomming_task(int index) const = 0;
         virtual bool regist_event(Event<model> event) = 0;
         virtual bool unregist_event(Event<model> event) = 0;
         virtual int wait() = 0;
@@ -93,9 +102,7 @@ namespace jrNetWork {
         MultiplexerPoll(uint max_task_n);
         virtual ~MultiplexerPoll() {}
         virtual bool set_listened(Event<IO_Model_POLL> listen) override;
-        virtual bool is_connection_event(int index) const override;
-        virtual bool is_readable_event(int index) const override;
-        virtual bool is_writeable_event(int index) const override;
+        virtual IncomingTask get_incomming_task(int index) const override;
         virtual bool regist_event(Event<IO_Model_POLL> event) override;    // Register event
         virtual bool unregist_event(Event<IO_Model_POLL> event) override;  // Unregister event
         virtual int wait() override;
@@ -115,9 +122,7 @@ namespace jrNetWork {
         MultiplexerEpoll(uint max_task_n);   // epoll init, create epoll file descriptor
         virtual ~MultiplexerEpoll();
         virtual bool set_listened(Event<IO_Model_EPOLL> listen) override;  // Set server listen socket
-        virtual bool is_connection_event(int index) const override;
-        virtual bool is_readable_event(int index) const override;
-        virtual bool is_writeable_event(int index) const override;
+        virtual IncomingTask get_incomming_task(int index) const override;
         virtual bool regist_event(Event<IO_Model_EPOLL> event) override;    // Register event into epoll wait
         virtual bool unregist_event(Event<IO_Model_EPOLL> event) override;  // Unregister event from epoll wait
         virtual int wait() override;
