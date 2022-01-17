@@ -1,9 +1,10 @@
-# jrNetWork ![](https://img.shields.io/badge/license-MIT-blue) ![](https://img.shields.io/badge/C%2B%2B-14-green) ![](https://img.shields.io/badge/os-Linux-yellowgreen)
+# jrNetWork ![](https://img.shields.io/badge/license-MIT-blue) ![](https://img.shields.io/badge/C%2B%2B-11-brightgreen) ![](https://img.shields.io/badge/os-Linux-yellowgreen)
 Linux平台上基于主线程Reactor+线程池模式的事件驱动网络库。该网络库具有如下特点：  
 1. 封装了socket底层系统调用；   
 2. 统一封装了poll/epoll，二者可以使用相同的类和API；   
 3. 采用定时器管理连接，带有简单的日志系统；  
 4. 自带HTTP1.0服务端示例程序（采用状态机解析协议）和json-RPC客户端/服务端（采用自定义协议）示例程序。  
+#### 注：网络库主体采用C++11标准，**但示例RPC服务端采用了C++14的std::index_sequence**。
 
 ## 1 文件结构
 ├── bin  二进制文件  
