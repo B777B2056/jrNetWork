@@ -1,4 +1,4 @@
-#include "HttpParser.h"
+#include "HttpReqParser.h"
 #include <sstream>
 #include <unordered_map>
 
@@ -225,7 +225,7 @@ namespace jrHTTP
         return content;
     }
 
-    std::string HttpParser::buildReqResponse(int retCode, const std::string& content)
+    std::string HttpReqParser::buildReqResponse(int retCode, const std::string& content)
     {
         /* Build status line */
         std::stringstream ss;
@@ -244,9 +244,9 @@ namespace jrHTTP
         return ret;
     }
 
-    HttpParser::Result HttpParser::parserReq(std::shared_ptr<jrNetWork::TCP::Socket> client)
+    HttpReqParser::Result HttpReqParser::parserReq(std::shared_ptr<jrNetWork::TCP::Socket> client)
     {
-        HttpParser::Result ret;
+        HttpReqParser::Result ret;
         if (parserRequestLine(client) && parserRequestHead(client))
         {
             if (reqTbl["method"] == "get")
@@ -268,31 +268,31 @@ namespace jrHTTP
         return ret;
     }
 
-    static std::string buildReqHelper(const std::string& url, const std::string& content)
-    {
-        /* Build status line */
-        std::stringstream ss;
-        ss << "POST" << " "
-            << url << " "
-            << httpVersion << "\r\n";
-        std::string ret(ss.str());
-        /* Build response header */
-        for (const auto& p : retTbl)
-        {
-            ret += (p.first + ":" + p.second + "\r\n");
-        }
-        ret += "\r\n";
-        ret += content;
-        return ret;
-    }
+    //static std::string buildReqHelper(const std::string& url, const std::string& content)
+    //{
+    //    /* Build status line */
+    //    std::stringstream ss;
+    //    ss << "POST" << " "
+    //        << url << " "
+    //        << httpVersion << "\r\n";
+    //    std::string ret(ss.str());
+    //    /* Build response header */
+    //    for (const auto& p : retTbl)
+    //    {
+    //        ret += (p.first + ":" + p.second + "\r\n");
+    //    }
+    //    ret += "\r\n";
+    //    ret += content;
+    //    return ret;
+    //}
 
-    std::string HttpParser::buildGetReq(const std::string& url)
-    {
-        return buildReqHelper(url, "");
-    }
+    //std::string HttpParser::buildGetReq(const std::string& url)
+    //{
+    //    return buildReqHelper(url, "");
+    //}
 
-    std::string HttpParser::buildPostReq(const std::string& url, const std::string& content)
-    {
-        return buildReqHelper(url, content);
-    }
+    //std::string HttpParser::buildPostReq(const std::string& url, const std::string& content)
+    //{
+    //    return buildReqHelper(url, content);
+    //}
 }

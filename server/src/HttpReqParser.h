@@ -8,7 +8,7 @@ namespace jrHTTP
 {
 	enum class HttpMethod { GET, POST };
 
-	namespace HttpParser
+	namespace HttpReqParser
 	{
 		struct Result
 		{
@@ -20,7 +20,5 @@ namespace jrHTTP
 
 		std::string buildReqResponse(int retCode, const std::string& content);
 		Result parserReq(std::shared_ptr<jrNetWork::TCP::Socket> client);
-		std::string buildGetReq(const std::string& url);
-		std::string buildPostReq(const std::string& url, const std::string& content);
 	}
 }

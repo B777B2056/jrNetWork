@@ -1,10 +1,10 @@
 #include "Webserver.h"
 #include <sys/wait.h>
 #include <unistd.h>
-#include <iostream>
 #include <fstream>
-#include "HttpParser.h"
+#include "HttpReqParser.h"
 #include "../network/Log.h"
+#include "Provider.h"
 
 namespace jrHTTP 
 {
@@ -30,7 +30,7 @@ namespace jrHTTP
     void HTTPServer::_handleHttpMsg(std::shared_ptr<jrNetWork::TCP::Socket> client) 
     {
         /* Get the parser result */
-        HttpParser::Result result = HttpParser::parserReq(client);
+        HttpReqParser::Result result = HttpReqParser::parserReq(client);
         int retCode = result.retCode;
         std::string content;
         switch (result.method)
@@ -39,13 +39,13 @@ namespace jrHTTP
             content = _handleGetReq(result.url, retCode);
             break;
         case HttpMethod::POST:
-            content = _handlePostReq(result.url, result.content, retCode);
+            content = _handleRpcCall(result.content);
             break;
         default:
             break;
         }
         /* Send ret data */
-        client->send(HttpParser::buildReqResponse(retCode, content));
+        client->send(HttpReqParser::buildReqResponse(retCode, content));
         //client->disconnect();   // close connection
     }
 
@@ -77,9 +77,9 @@ namespace jrHTTP
         }
     }
 
-    std::string HTTPServer::_handlePostReq(const std::string &path, const std::string &body, int &ret_code) 
+    std::string HTTPServer::_handleRpcCall(const std::string& content)
     {
-        return _execCgi(path, body, ret_code, "POST");
+        return jrRPC::Provider::instance().callProc(content);
     }
 
     std::string HTTPServer::_execCgi(const std::string &path, const std::string &parameters, int &ret_code, std::string method) 
