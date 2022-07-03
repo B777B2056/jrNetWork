@@ -1,0 +1,8 @@
+cmake_minimum_required(VERSION 3.5)
+project(jrHttpServer)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+aux_source_directory(src SRC_LIST)
+aux_source_directory(network NETWORK_SRC_LIST)
+add_executable(jrHttpServer ${SRC_LIST} ${NETWORK_SRC_LIST})
+target_link_libraries(jrHttpServer pthread)
