@@ -4,6 +4,7 @@
 
 namespace jrHTTP
 {
+    static bool peerIsClosed = false;
     static int innerRetCode = 0;
     static const std::string httpVersion = "HTTP/1.0";
     static std::unordered_map<std::string, std::string> reqTbl;
@@ -26,9 +27,10 @@ namespace jrHTTP
             auto recv = client->recv(1);
             if (recv.empty())
             {
+                peerIsClosed = true;
                 break;
             }
-            if (recv[0] >= 'A' && recv[0] <= 'Z')
+            if ((state != URL) && (recv[0] >= 'A' && recv[0] <= 'Z'))
             {
                 recv[0] = (recv[0] - 'A' + 'a');
             }
@@ -112,6 +114,7 @@ namespace jrHTTP
             auto recv = client->recv(1);
             if (recv.empty())
             {
+                peerIsClosed = true;
                 break;
             }
             if (recv[0] >= 'A' && recv[0] <= 'Z')
@@ -239,7 +242,7 @@ namespace jrHTTP
                 ret.content = parserRequestBody(client, std::stoi(reqTbl["content-length"]));
             }
         }
-        ret.retCode = innerRetCode;
+        ret.retCode = peerIsClosed ? 0 : innerRetCode;
         reqTbl.clear();
         return ret;
     }

@@ -1,5 +1,6 @@
 #include "Procedures.h"
 #include<algorithm>
+#include <random>
 
 namespace jrRPC
 {
@@ -11,6 +12,11 @@ namespace jrRPC
             {
                 std::sort(vec.begin(), vec.end());
                 return vec;
+            }
+
+            int noparamFunc()
+            {
+                return ::rand() % 100;
             }
         }
     }

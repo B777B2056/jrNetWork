@@ -18,8 +18,6 @@ namespace jrHTTP
         , _fileMappingPath(std::string(__FILE__).substr(0, std::string(__FILE__).find_last_of('/'))+"/source") 
     {
         _dispatcher.setSignalEventHandler(SIGPIPE, handleSIGPIPE);
-        _dispatcher.setSignalEventHandler(SIGABRT, jrRPC::handleRemoteCallException);
-        _dispatcher.setSignalEventHandler(SIGSEGV, jrRPC::handleRemoteCallSegmantFault);
         /* Set http handler */
         _dispatcher.setReadEventHandler(&HTTPServer::_handleHttpMsg, this);
     }
@@ -41,14 +39,27 @@ namespace jrHTTP
             content = _handleGetReq(result.url, retCode);
             break;
         case HttpMethod::POST:
-            content = _handleRpcCall(result.content);
+            if (result.url.substr(result.url.length() - 3, 3) == "RPC")
+            {
+                content = _handleRpcCall(result.content);
+            }
+            else
+            {
+                LOGNOTICE() << "Normal POST Req:" << result.url << std::endl;
+            }
             break;
         default:
             break;
         }
         /* Send ret data */
-        client->send(HttpReqParser::buildReqResponse(retCode, content));
-        //client->disconnect();   // close connection
+        if (retCode != 0)
+        {
+            client->send(HttpReqParser::buildReqResponse(retCode, content));
+        }
+        else
+        {
+            client->disconnect();   // peer is closed
+        }
     }
 
     std::string HTTPServer::_handleGetReq(const std::string &url, int &ret_code) 

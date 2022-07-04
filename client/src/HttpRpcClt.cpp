@@ -1,4 +1,5 @@
 #include "HttpRpcClt.h"
+#include "../network/Log.h"
 #include <sstream>
 
 namespace jrRPC
@@ -8,7 +9,7 @@ namespace jrRPC
                                                                    {"Connection", "Keep-Alive"} };
 
     RPCClient::RPCClient(const std::string& ip, std::uint16_t port)
-        : _svrUrl(ip + ":" + std::to_string(port) + "/RPC")
+        : _svrUrl(ip + ":" + std::to_string(port) + "/RPC"), _socket(jrNetWork::TCP::Socket::IO_BLOCKING)
     {
         _socket.connect(ip, port);
     }
@@ -16,6 +17,14 @@ namespace jrRPC
     RPCClient::~RPCClient()
     {
         _socket.disconnect();
+    }
+
+    std::string RPCClient::_pack(const std::string& name)
+    {
+        nlohmann::json pkg;
+        pkg["name"] = name;
+        pkg["parameters"] = "";
+        return pkg.dump();
     }
 
     static std::string buildPostReq(const std::string& url, const std::string& content)
@@ -206,7 +215,7 @@ namespace jrRPC
                 return 0;
             }
         }
-        return 0;
+        return len;
     }
 
     static std::string parserResponseBody(jrNetWork::TCP::Socket* server, int contentLength)
@@ -218,6 +227,7 @@ namespace jrRPC
             if (recv.empty()) break;
             content += recv[0];
         }
+        LOGNOTICE() << std::setw(4) << nlohmann::json(content);
         return content;
     }
 

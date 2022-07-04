@@ -33,6 +33,7 @@ namespace jrRPC
 	Provider::Provider()
 	{
 		_addNonMemberFunc("intSort", RegistedProc::NonMember::intSort);
+		_addNonMemberFunc("noparamFunc", RegistedProc::NonMember::noparamFunc);
 	}
 
 	Provider& Provider::instance()
@@ -66,6 +67,6 @@ namespace jrRPC
 			msg["error_msg"] = "SIGSEGV";
 		}
 		ec = ErrorCode::Normal;
-		return msg;
+		return msg.dump();
 	}
 }

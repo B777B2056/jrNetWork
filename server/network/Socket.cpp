@@ -170,7 +170,7 @@ namespace jrNetWork {
         else 
         {
             /* Send data */
-            uint sent_size = 0;
+            std::size_t sent_size = 0;
             while(true) 
             {
                 int flag = ::send(_id, data_c, length-sent_size, MSG_DONTWAIT);

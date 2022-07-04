@@ -18,31 +18,50 @@ namespace jrNetWork
 {
     namespace _UnifiedEventSource
     {
-        static int uesfd[2];
+        static int _uesfd[2];
+
+        // Init ues
+        static void init()
+        {
+            if (-1 == ::socketpair(AF_UNIX, SOCK_STREAM, 0, _uesfd))
+            {
+                LOGFATAL() << "UES endpoint init failed: " << ::strerror(errno) << std::endl;
+            }
+            // Set ues fd write non-blocking
+            ::fcntl(_uesfd[1], F_SETFL, ::fcntl(_uesfd[1], F_GETFL) | O_NONBLOCK);
+        }
+
         // Close fd
         static void closeUes()
         {
-            ::close(uesfd[0]);
-            ::close(uesfd[1]);
+            ::close(_uesfd[1]);
+            ::close(_uesfd[0]);
         }
 
         // Wrire signal to uesfd
         static void signalTransfer(int sig)
         {
-            ::write(uesfd[1], reinterpret_cast<char*>(&sig), 1);
+            LOGNOTICE() << "Catch signal, signal " << sig << std::endl;
+            ::write(_uesfd[1], reinterpret_cast<char*>(&sig), 1);
         }
         
-        // Bind signal and uesfd
+        // Bind signal
         static void bindSignal(int sig)
         {
-            if (-1 == ::pipe(uesfd)) 
+            struct sigaction act;
+            ::memset(&act, 0, sizeof(struct sigaction));
+            act.sa_handler = signalTransfer;
+            ::sigemptyset(&act.sa_mask);			
+            ::sigaddset(&act.sa_mask, sig);
+            act.sa_flags |= SA_RESTART;
+            if (-1 == ::sigaction(sig, &act, nullptr))
             {
-
+                LOGFATAL() << "Signal redirect failed: " << ::strerror(errno) << std::endl;
             }
-            // Set ues fd write non-blocking
-            ::fcntl(uesfd[1], F_SETFL, ::fcntl(uesfd[1], F_GETFL) | O_NONBLOCK);
-            // Bind
-            ::signal(sig, signalTransfer);
+            else
+            {
+                LOGNOTICE() << "Signal redirect success, " << sig << std::endl;
+            }
         }
 
         static bool handleSignals(std::unordered_map<int, std::function<void()> >& sigHandlerTbl)
@@ -50,7 +69,7 @@ namespace jrNetWork
             char sig[32];
             bool isTimeout = false;
             ::memset(sig, 0, sizeof(sig));
-            int num = ::read(uesfd[0], sig, sizeof(sig));
+            int num = ::read(_uesfd[0], sig, sizeof(sig));
             if (num <= 0)
             {
                 return false;
@@ -103,10 +122,15 @@ namespace jrNetWork
             /* Listen target port */
             socket.listen();
             /* Regist listen event */
-            Event listenEv;
-            listenEv.id = socket._id;
-            listenEv.type = EventType::LISTEN;
-            _multiplexer->registEvent(listenEv);
+            Event ev;
+            ev.id = socket._id;
+            ev.type = EventType::LISTEN;
+            _multiplexer->registEvent(ev);
+            /* Regist signal event */
+            _UnifiedEventSource::init();
+            ev.id = _UnifiedEventSource::_uesfd[0];
+            ev.type = EventType::SIGNAL;
+            _multiplexer->registEvent(ev);
         }
 
         /* Do Accept */
@@ -137,7 +161,7 @@ namespace jrNetWork
             }
             if (ev.type == EventType::READ)
             {
-                if (ev.id == _UnifiedEventSource::uesfd[0])
+                if (ev.id == _UnifiedEventSource::_uesfd[0])
                 {
                     ev.type == EventType::SIGNAL;
                 }

@@ -30,6 +30,8 @@ namespace jrRPC
             this->_packHelper(parameters, args...);
         }
 
+        std::string _pack(const std::string& name);
+
         template<typename... Args>
         std::string _pack(const std::string& name, Args&&... args)
         {
@@ -37,25 +39,34 @@ namespace jrRPC
             pkg["name"] = name;
             pkg["parameters"] = nlohmann::json::array();
             this->_packHelper(pkg["parameters"], args...);
-            return pkg;
+            return pkg.dump();
         }
 
         template<typename Ret>
         Ret _unpack(const nlohmann::json& ret)
         {
-            if (ret.at("error_flag").get<bool>()) 
+            if (ret.at("error").get<bool>()) 
             {
                 throw std::runtime_error(ret.at("error_msg").get<std::string>());
             }
             else 
             {
-                return ret.at("return_value").get<Ret>();
+                return ret.at("return_val").get<Ret>();
             }
         }
 
     public:
         RPCClient(const std::string& ip, std::uint16_t port);
         ~RPCClient();
+
+        template<typename Ret>
+        Ret call(const std::string& name)
+        {
+            // Pack target method's infomation, then send it to server as HTTP's body
+            _sendPostReq(this->_pack(name));
+            // Receive return value from server, then unpack return value
+            return this->_unpack<Ret>(nlohmann::json::parse(_recvResponse()));
+        }
 
         template<typename Ret, typename... Args>
         Ret call(const std::string& name, Args&&... args)

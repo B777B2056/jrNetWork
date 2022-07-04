@@ -9,6 +9,8 @@ namespace jrRPC
         namespace NonMember
         {
             std::vector<int> intSort(std::vector<int> vec);
+
+            int noparamFunc();
         }
         
         namespace Member
