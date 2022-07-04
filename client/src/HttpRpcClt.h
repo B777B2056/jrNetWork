@@ -1,5 +1,6 @@
 #pragma once
 
+#include <future>
 #include <string>
 #include <cstdint>
 #include "../network/Socket.h"
@@ -59,15 +60,6 @@ namespace jrRPC
         RPCClient(const std::string& ip, std::uint16_t port);
         ~RPCClient();
 
-        template<typename Ret>
-        Ret call(const std::string& name)
-        {
-            // Pack target method's infomation, then send it to server as HTTP's body
-            _sendPostReq(this->_pack(name));
-            // Receive return value from server, then unpack return value
-            return this->_unpack<Ret>(nlohmann::json::parse(_recvResponse()));
-        }
-
         template<typename Ret, typename... Args>
         Ret call(const std::string& name, Args&&... args)
         {
@@ -75,6 +67,14 @@ namespace jrRPC
             _sendPostReq(this->_pack(name, std::forward<Args>(args)...));
             // Receive return value from server, then unpack return value
             return this->_unpack<Ret>(nlohmann::json::parse(_recvResponse()));
+        }
+
+        template<typename Ret, typename... Args>
+        Ret asyncCall(const std::string& name, Args&&... args)
+        {
+            auto res = std::async(std::launch::async, &RPCClient::call, this, name, std::forward<Args>(args)...);
+            res.wait();
+            return res.get();
         }
     };
 }
