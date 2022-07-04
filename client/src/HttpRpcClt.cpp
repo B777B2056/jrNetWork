@@ -1,29 +1,56 @@
-#include "HttpReqParser.h"
+#include "HttpRpcClt.h"
 #include <sstream>
-#include <unordered_map>
 
-namespace jrHTTP
+namespace jrRPC
 {
-    static int innerRetCode = 0;
     static const std::string httpVersion = "HTTP/1.0";
-    static std::unordered_map<std::string, std::string> reqTbl;
     static std::unordered_map<std::string, std::string> retTbl = { {"Server", "jrHTTP"},
                                                                    {"Connection", "Keep-Alive"} };
-    static const std::unordered_map<int, std::string> statusTbl = { {200, "OK"},
-                                                                    {400, "Bad Request"}, 
-                                                                    {404, "Not Found"},
-                                                                    {500, "Internal Server Error"}, 
-                                                                    {501, "Not Implemented"} };
 
-    static bool parserRequestLine(std::shared_ptr<jrNetWork::TCP::Socket> client)
+    RPCClient::RPCClient(const std::string& ip, std::uint16_t port)
+        : _svrUrl(ip + ":" + std::to_string(port) + "/RPC")
     {
-        enum State { METHOD, URL, VERSION, END, ERROR };
-        State state = METHOD;
+        _socket.connect(ip, port);
+    }
+
+    RPCClient::~RPCClient()
+    {
+        _socket.disconnect();
+    }
+
+    static std::string buildPostReq(const std::string& url, const std::string& content)
+    {
+        /* Set content length */
+        retTbl["Content-Length"] = std::to_string(content.length());
+        /* Build status line */
+        std::stringstream ss;
+        ss << "POST" << " "
+            << url << " "
+            << httpVersion << "\r\n";
+        std::string ret(ss.str());
+        /* Build response header */
+        for (const auto& p : retTbl)
+        {
+            ret += (p.first + ":" + p.second + "\r\n");
+        }
+        ret += "\r\n";
+        ret += content;
+        return ret;
+    }
+    void RPCClient::_sendPostReq(const std::string& content)
+    {
+        _socket.send(buildPostReq(_svrUrl, content));
+    }
+
+    static bool parserResponseLine(jrNetWork::TCP::Socket* server, std::string& description)
+    {
+        enum State { VERSION, CODE, DESCRIPTION, END, ERROR };
+        State state = VERSION;
         bool stop = false;
-        std::string method, url, version;
+        std::string version, retCode;
         while (!stop)
         {
-            auto recv = client->recv(1);
+            auto recv = server->recv(1);
             if (recv.empty())
             {
                 break;
@@ -34,33 +61,34 @@ namespace jrHTTP
             }
             switch (state)
             {
-            case METHOD:
-                if (recv[0] >= 'a' && recv[0] <= 'z')
+            case VERSION:
+                if (recv[0] == ' ')
                 {
-                    method += recv[0];
-                    state = METHOD;
-                }
-                else if (recv[0] == ' ')
-                {
-                    state = URL;
-                }
-                break;
-            case URL:
-                if (recv[0] != ' ')
-                {
-                    url += recv[0];
-                    state = URL;
+                    state = CODE;
                 }
                 else
                 {
-                    state = VERSION;
+                    version += recv[0];
                 }
                 break;
-            case VERSION:
+            case CODE:
+                if (recv[0] >= '0' && recv[0] <= '9')
+                {
+                    retCode += recv[0];
+                }
+                else if (recv[0] == ' ')
+                {
+                    state = DESCRIPTION;
+                }
+                else
+                {
+                    state = ERROR;
+                }
+                break;
+            case DESCRIPTION:
                 if (recv[0] != '\r')
                 {
-                    version += recv[0];
-                    state = VERSION;
+                    description += recv[0];
                 }
                 else
                 {
@@ -70,36 +98,30 @@ namespace jrHTTP
             case END:
                 if (recv[0] != '\n')
                 {
-                    innerRetCode = 400;
                     return false;
                 }
                 stop = true;
                 break;
             case ERROR:
-                innerRetCode = 400;
                 return false;
             }
         }
         if (!stop)
         {
-            innerRetCode = 500;
             return false;
         }
         else
         {
-            innerRetCode = 200;
-            reqTbl["method"] = method;
-            reqTbl["url"] = url;
-            reqTbl["version"] = version;
-            return true;
+            return std::stoi(retCode) == 200;
         }
     }
 
-    static bool parserRequestHead(std::shared_ptr<jrNetWork::TCP::Socket> client)
+    static int parserResponseHead(jrNetWork::TCP::Socket* server)
     {
         enum State { KEY, VALUE, NEXT_LINE, LINE_END, END, ERROR };
         State state = KEY;
         bool stop = false;
+        int len = 0;
         std::string key, value;
         auto removeFrontSpace = [](std::string& str)->void
         {
@@ -109,7 +131,7 @@ namespace jrHTTP
         };
         while (!stop)
         {
-            auto recv = client->recv(1);
+            auto recv = server->recv(1);
             if (recv.empty())
             {
                 break;
@@ -147,8 +169,10 @@ namespace jrHTTP
                 {
                     removeFrontSpace(key);
                     removeFrontSpace(value);
-                    reqTbl[key] = value;
-                    key = value = "";
+                    if (key == "content-length")
+                    {
+                        len = std::stoi(value);
+                    }
                     state = LINE_END;
                 }
                 else
@@ -174,73 +198,46 @@ namespace jrHTTP
             case END:
                 if (recv[0] != '\n')
                 {
-                    innerRetCode = 400;
-                    return false;
+                    return 0;
                 }
                 stop = true;
                 break;
             case ERROR:
-                innerRetCode = 400;
-                return false;
+                return 0;
             }
         }
-        return true;
+        return 0;
     }
 
-    static std::string parserRequestBody(std::shared_ptr<jrNetWork::TCP::Socket> client, int contentLength)
+    static std::string parserResponseBody(jrNetWork::TCP::Socket* server, int contentLength)
     {
         std::string content;
         while (contentLength--)
         {
-            auto recv = client->recv(1);
+            auto recv = server->recv(1);
             if (recv.empty()) break;
             content += recv[0];
         }
         return content;
     }
 
-    std::string HttpReqParser::buildReqResponse(int retCode, const std::string& content)
+    std::string RPCClient::_recvResponse()
     {
-        /* Set content length */
-        retTbl["Content-Length"] = std::to_string(content.length());
-        /* Build status line */
-        std::stringstream ss;
-        ss << httpVersion << " "
-           << retCode << " "
-           << statusTbl.at(retCode) << "\r\n";
-        std::string ret(ss.str());
-        /* Build response header */
-        for (const auto& p : retTbl)
+        std::string description;
+        if (!parserResponseLine(&_socket, description))
         {
-            ret += (p.first + ":" + p.second + "\r\n");
-        }
-        ret += "\r\n";
-        /* Attach response body */
-        ret += content;
-        return ret;
-    }
-
-    HttpReqParser::Result HttpReqParser::parserReq(std::shared_ptr<jrNetWork::TCP::Socket> client)
-    {
-        HttpReqParser::Result ret;
-        if (parserRequestLine(client) && parserRequestHead(client))
-        {
-            if (reqTbl["method"] == "get")
+            if (description.empty())
             {
-                ret.method = HttpMethod::GET;
+                // Parser error
+
+                return "";
             }
             else
             {
-                ret.method = HttpMethod::POST;
-            }
-            ret.url = reqTbl["url"];
-            if (reqTbl.count("content-length") != 0)
-            {
-                ret.content = parserRequestBody(client, std::stoi(reqTbl["content-length"]));
+                // Http error
+                return description;
             }
         }
-        ret.retCode = innerRetCode;
-        reqTbl.clear();
-        return ret;
+        return parserResponseBody(&_socket, parserResponseHead(&_socket));
     }
 }

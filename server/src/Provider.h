@@ -7,6 +7,17 @@
 
 namespace jrRPC
 {
+	enum class ErrorCode : std::uint16_t
+	{
+		Normal = 0x01,
+		Exception = 0x02,
+		SegmantFault = 0x03
+	};
+
+	void handleRemoteCallException();
+
+	void handleRemoteCallSegmantFault();
+
 	class Provider
 	{
 	private:
@@ -14,27 +25,34 @@ namespace jrRPC
 		std::unordered_map<std::string, ProcType> _procList;
 
 	private:
-		Provider() = default;
+		Provider();
 
-		/* Create a remote call with json format from a original function */
+		/* Create a non-member function call with json format from a original function */
 		template<typename Ret, typename... Args, std::size_t... N>
-		ProcType _addRemoteProcedureHelper(std::function<Ret(Args...)> f, std::index_sequence<N...>)
+		ProcType _addNonMemberFuncHelper(Ret(*f)(Args...), std::index_sequence<N...>)
 		{
-			return [=](const nlohmann::json& parameters)->nlohmann::json
+			return [f](const nlohmann::json& parameters)->nlohmann::json
 			{
 				return f(parameters[N].get<typename std::decay<Args>::type>()...);
 			};
 		}
 
+		/* Register non-member function */
+		template<typename Ret, typename ... Args>
+		void _addNonMemberFunc(const std::string& name, Ret(*f)(Args...))
+		{
+			this->_procList[name] = this->_addNonMemberFuncHelper(f, std::index_sequence_for<Args...>{});
+		}
+
+		/* Register member function */
+		template<typename C, typename Ret, typename ... Args>
+		void _addMemberFunc(const std::string& name, Ret(C::*f)(Args...))
+		{
+			return;
+		}
+
 	public:
 		static Provider& instance();
-
-		/* Add Procedure */
-		template<typename Ret, typename ... Args>
-		void addRemoteProcedure(const std::string& name, std::function<Ret(Args...)> f)
-		{
-			this->_procList[name] = this->_addRemoteProcedureHelper(f, std::index_sequence_for<Args...>{});
-		}
 
 		/* Do proc call */
 		std::string callProc(const std::string& proc);

@@ -1,7 +1,20 @@
 #include "Provider.h"
+#include "Procedures.h"
 
 namespace jrRPC
 {
+	static ErrorCode ec = ErrorCode::Normal;
+
+	void handleRemoteCallException()
+	{
+		ec = ErrorCode::Exception;
+	}
+
+	void handleRemoteCallSegmantFault()
+	{
+		ec = ErrorCode::SegmantFault;
+	}
+
 	struct _ProcInfo
 	{
 		std::string name;
@@ -15,6 +28,11 @@ namespace jrRPC
 		p.name = nlohmann::json::parse(proc).at("name");
 		p.param = nlohmann::json::parse(proc).at("parameters");
 		return p;
+	}
+
+	Provider::Provider()
+	{
+		_addNonMemberFunc("intSort", RegistedProc::NonMember::intSort);
 	}
 
 	Provider& Provider::instance()
@@ -37,6 +55,17 @@ namespace jrRPC
 			msg["error"] = true;
 			msg["error_msg"] = "Remote proc " + p.name + " not found";
 		}
+		if (ec == ErrorCode::Exception)
+		{
+			msg["error"] = true;
+			msg["error_msg"] = "SIGABRT";
+		}
+		if (ec == ErrorCode::SegmantFault)
+		{
+			msg["error"] = true;
+			msg["error_msg"] = "SIGSEGV";
+		}
+		ec = ErrorCode::Normal;
 		return msg;
 	}
 }

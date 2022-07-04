@@ -1,0 +1,7 @@
+cmake_minimum_required(VERSION 3.5)
+project(jrHttpRpcClient LANGUAGES CXX)
+set(CMAKE_CXX_STANDARD 14)
+aux_source_directory(src SRC_LIST)
+aux_source_directory(network NETWORK_SRC_LIST)
+add_executable(jrHttpRpcClient ${SRC_LIST} ${NETWORK_SRC_LIST})
+target_link_libraries(jrHttpRpcClient pthread)

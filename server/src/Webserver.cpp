@@ -18,6 +18,8 @@ namespace jrHTTP
         , _fileMappingPath(std::string(__FILE__).substr(0, std::string(__FILE__).find_last_of('/'))+"/source") 
     {
         _dispatcher.setSignalEventHandler(SIGPIPE, handleSIGPIPE);
+        _dispatcher.setSignalEventHandler(SIGABRT, jrRPC::handleRemoteCallException);
+        _dispatcher.setSignalEventHandler(SIGSEGV, jrRPC::handleRemoteCallSegmantFault);
         /* Set http handler */
         _dispatcher.setReadEventHandler(&HTTPServer::_handleHttpMsg, this);
     }
