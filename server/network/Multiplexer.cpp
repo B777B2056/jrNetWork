@@ -9,12 +9,88 @@ namespace jrNetWork
 	constexpr int eEventListInitSize = 8;
 	constexpr int eEventListMaxSize = 1024;
 
+	_MultiplexerBase::_MultiplexerBase()
+		: _waitEvN(0)
+		, _listenSock(0)
+		, _activateNativeEvents(eEventListInitSize)
+	{
+
+	}
+
+	MultiplexerIterator::MultiplexerIterator(_MultiplexerBase& mp, std::size_t i)
+		: _idx(i)
+		, _innerEv(mp._activateNativeEvents[i])
+		, _mp{mp}
+	{
+
+	}
+
+	void MultiplexerIterator::_checkListener()
+	{
+		if (_mp._listenSock == _mp._activateNativeEvents[_idx].data.fd)
+		{
+			_innerEv.type = EventType::LISTEN;
+		}
+	}
+
+	Event& MultiplexerIterator::operator*()
+	{
+		_checkListener();
+		return _innerEv;
+	}
+
+	Event* MultiplexerIterator::operator->()
+	{
+		_checkListener();
+		return &_innerEv;
+	}
+
+	MultiplexerIterator& MultiplexerIterator::operator++()
+	{
+		_innerEv = _mp._activateNativeEvents[++_idx];
+		return *this;
+	}
+
+	MultiplexerIterator MultiplexerIterator::operator++(int)
+	{
+		MultiplexerIterator tmp = *this;
+		_innerEv = _mp._activateNativeEvents[++_idx];
+		return tmp;
+	}
+
+	MultiplexerIterator& MultiplexerIterator::operator--()
+	{
+		_innerEv = _mp._activateNativeEvents[--_idx];
+		return *this;
+	}
+
+	MultiplexerIterator MultiplexerIterator::operator--(int)
+	{
+		MultiplexerIterator tmp = *this;
+		_innerEv = _mp._activateNativeEvents[--_idx];
+		return tmp;
+	}
+
+	bool MultiplexerIterator::operator==(const MultiplexerIterator& rhs)
+	{
+		return _idx == rhs._idx;
+	}
+
+	bool MultiplexerIterator::operator!=(const MultiplexerIterator& rhs)
+	{
+		return !(*this == rhs);
+	}
+
+	namespace Poll
+	{
+		
+	}
+
 	namespace Epoll
 	{
 		Multiplexer::Multiplexer()
-			: _epollfd(::epoll_create(eEventListInitSize))
-			, _listenSock(0)
-			, _activateNativeEvents(eEventListInitSize)
+			: _MultiplexerBase()
+			, _epollfd(::epoll_create(eEventListInitSize))
 		{
 			if (-1 == _epollfd)
 			{
@@ -55,6 +131,16 @@ namespace jrNetWork
 			}
 		}
 
+		Multiplexer::iterator Multiplexer::begin()
+		{
+			return Multiplexer::iterator(*this, 0);
+		}
+
+		Multiplexer::iterator Multiplexer::end()
+		{
+			return Multiplexer::iterator(*this, _waitEvN);
+		}
+
 		void Multiplexer::registEvent(const Event& ev)
 		{
 			_changeEvent(ev, EPOLL_CTL_ADD);
@@ -65,12 +151,13 @@ namespace jrNetWork
 			_changeEvent(ev, EPOLL_CTL_DEL);
 		}
 
-		void Multiplexer::wait(std::deque<Event>& activateEvents, int timeoutMs)
+		void Multiplexer::wait(int timeoutMs)
 		{
 			int n = ::epoll_wait(_epollfd, &_activateNativeEvents[0],
 						   static_cast<int>(_activateNativeEvents.size()), timeoutMs);
 			if (-1 == n)
 			{
+				_waitEvN = 0;
 				// 出错
 				if (errno != EINTR)
 				{
@@ -79,15 +166,7 @@ namespace jrNetWork
 			}
 			else if (n > 0)
 			{
-				// 填充EventLoop激活事件队列
-				for (int idx = 0; idx < n; ++idx)
-				{
-					activateEvents.emplace_back(_activateNativeEvents[idx]);
-					if (_listenSock == _activateNativeEvents[idx].data.fd)
-					{
-						activateEvents.back().type = EventType::LISTEN;
-					}
-				}
+				_waitEvN = n;
 				// 本次通知达到预设的最大事件数，说明需要进行扩容
 				if (n == static_cast<int>(_activateNativeEvents.size()))
 				{
@@ -96,6 +175,7 @@ namespace jrNetWork
 			}
 			else
 			{
+				_waitEvN = 0;
 				// 超时
 				LOGNOTICE() << "Timeout." << std::endl;
 			}

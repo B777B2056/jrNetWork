@@ -109,8 +109,6 @@ namespace jrNetWork
         TimerContainer<SocketType> _timer;
         /* Thread pool */
         ThreadPool _threadPool;
-        /* Event List */
-        std::deque<Event> _activateEvents;
         /* Signal-Handler table */
         std::unordered_map<int, std::function<void()> > _sigHandlerTbl;
 
@@ -174,7 +172,7 @@ namespace jrNetWork
                         // If the data has not been sent at one time,
                         // it will be pushed into the buffer (completed by TCP::Socket),
                         // and then register the EPOLLOUT event to wait for the next sending.
-                        if (!_idSocketTbl[ev.id]->is_send_all())
+                        if (!_idSocketTbl[ev.id]->isSendAll())
                         {
                             Event writeEv;
                             writeEv.id = ev.id;
@@ -196,6 +194,10 @@ namespace jrNetWork
                     }
                 });
             }
+            if (ev.type == EventType::ConnClosed)
+            {
+                ::close(ev.id);
+            }
             if (ev.type == EventType::SIGNAL)
             {
                 if (_UnifiedEventSource::handleSignals(_sigHandlerTbl))
@@ -216,7 +218,7 @@ namespace jrNetWork
         /* Send data in buffer */
         bool _sendRestBuf(CltPtrType cltPtr)
         {
-            if (!cltPtr->is_send_all())
+            if (!cltPtr->isSendAll())
             {
                 /* Send data in buffer */
                 std::string pre_data = cltPtr->_sendBuffer.getData();
@@ -249,8 +251,10 @@ namespace jrNetWork
             auto handlerBinder = std::bind(std::forward<F>(handler), std::forward<Args>(args)..., std::placeholders::_1);
             return [handlerBinder](CltPtrType cltPtr)->void
             {
-                handlerBinder(cltPtr);
-            };
+                if (cltPtr)
+                {
+                    handlerBinder(cltPtr);
+                }            };
         }
 
     public:
@@ -307,11 +311,10 @@ namespace jrNetWork
             _timer.startCount(timeoutMs);
             while(!stop)
             {
-                _activateEvents.clear();
-                _multiplexer->wait(_activateEvents);
-                for (Event& ev : _activateEvents)
+                _multiplexer->wait();
+                for (auto cit = _multiplexer->begin(); cit != _multiplexer->end(); ++cit)
                 {
-                    _handleEvent(timeoutMs, ev);
+                    _handleEvent(timeoutMs, *cit);
                 }
             }
             return 0;

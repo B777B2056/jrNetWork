@@ -5,7 +5,7 @@
 namespace jrHTTP
 {
     static bool peerIsClosed = false;
-    static int innerRetCode = 0;
+    static int innerRetCode = 200;
     static const std::string httpVersion = "HTTP/1.0";
     static std::unordered_map<std::string, std::string> reqTbl;
     static std::unordered_map<std::string, std::string> retTbl = { {"Server", "jrHTTP"},
@@ -243,6 +243,7 @@ namespace jrHTTP
             }
         }
         ret.retCode = peerIsClosed ? 0 : innerRetCode;
+        innerRetCode = 200;
         reqTbl.clear();
         return ret;
     }

@@ -54,11 +54,13 @@ namespace jrHTTP
         /* Send ret data */
         if (retCode != 0)
         {
-            client->send(HttpReqParser::buildReqResponse(retCode, content));
+            auto s = HttpReqParser::buildReqResponse(retCode, content);
+            LOGNOTICE() << "Send:\n" << s << std::endl;
+            client->send(s);
         }
         else
         {
-            client->disconnect();   // peer is closed
+            LOGNOTICE() << "Peer is closed!" << std::endl;
         }
     }
 

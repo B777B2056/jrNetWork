@@ -4,6 +4,7 @@
 #include <errno.h>
 #include <unistd.h>
 #include <cstring>
+#include "Log.h"
 
 namespace jrNetWork {
     TCP::Socket::Socket(IO_MODE blockingFlag)
@@ -13,6 +14,11 @@ namespace jrNetWork {
         if(-1 == _id) 
         {
             throw std::string("TCP Socket create failed: ") + strerror(errno);
+        }
+        int t;
+        if (-1 == ::setsockopt(_id, SOL_SOCKET, SO_REUSEADDR, &t, sizeof(t)))
+        {
+            throw std::string("Setsockopt with SO_REUSEADDR failed: ") + strerror(errno);
         }
     }
 
@@ -68,7 +74,7 @@ namespace jrNetWork {
 
     std::shared_ptr<TCP::Socket> TCP::Socket::accept() 
     {
-        int clientfd = ::accept(_id, NULL, NULL);
+        int clientfd = ::accept(_id, nullptr, nullptr);
         if (-1 == clientfd) 
         {
             return nullptr;
@@ -80,20 +86,35 @@ namespace jrNetWork {
 
     std::string TCP::Socket::recv(std::uint32_t length)
     {
+        int size = 0;
+        int flag = 0;
         std::string temp(length, 0);
         if(_blockingFlag == IO_BLOCKING) 
         {
-            int size = ::recv(_id, &temp[0], length, 0);
-            if(size < 0) 
+            for(;;)
             {
-                if(errno != EINTR) 
+                if (size == length)
                 {
-                    return "";
+                    break;
                 }
-            } 
-            else if(size == 0)
-            {
-                return "";
+                flag = ::recv(_id, &temp[size], length - size, 0);
+                if (flag < 0)
+                {
+                    if (errno != EINTR)
+                    {
+                        LOGNOTICE() << "Blocking, errno = " << errno << std::endl;
+                        break;
+                    }
+                }
+                else if (flag == 0)
+                {
+                    LOGNOTICE() << "Blocking, peer is closed." << std::endl;
+                    break;
+                } 
+                else
+                {
+                    size += flag;
+                }
             }
             return temp;
         } 
@@ -104,32 +125,35 @@ namespace jrNetWork {
              * (to prevent the complete content from being read when epoll is set to ET),
              * the user actually reads the specified length of data from the Buffer.
              */
-            for(;;)
+            for (;;)
             {
-                //temp.resize(length, 0);
-                int size = ::recv(_id, &temp[0], length, MSG_DONTWAIT);
-                if(size < 0) 
+                if (size == length)
                 {
-                    if(errno==EAGAIN || errno==EWOULDBLOCK) 
+                    break;
+                }
+                flag = ::recv(_id, &temp[size], length - size, MSG_DONTWAIT);
+                if(flag < 0)
+                {
+                    if(errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR)
                     {
-                        break;
-                    } 
-                    else if(errno==EINTR) 
-                    {
+                        LOGNOTICE() << "Nonblocking, errno = " << errno << " continue" << std::endl;
                         continue;
                     } 
                     else 
                     {
-                        return "";
+                        LOGNOTICE() << "Nonblocking, errno = " << errno << " break" << std::endl;
+                        break;
                     }
                 } 
-                else if(size == 0) 
+                else if(flag == 0)
                 {
-                    return "";
+                    LOGNOTICE() << "Nonblocking, peer is closed." << std::endl;
+                    break;
                 } 
                 else 
                 {
-                    _recvBuffer.append(temp.begin(), temp.begin()+size);
+                    _recvBuffer.append(temp.begin() + size, temp.begin() + size + flag);
+                    size += flag;
                 }
             }
             return _recvBuffer.getData(length);
@@ -148,7 +172,7 @@ namespace jrNetWork {
              */
             for(int size = 0; size < length; ) 
             {
-                int flag = ::send(_id, data_c+size, length-size, 0);
+                int flag = ::send(_id, data_c + size, length - size, 0);
                 if(flag == -1) 
                 {
                     if(errno != EINTR) 
@@ -173,14 +197,14 @@ namespace jrNetWork {
             std::size_t sent_size = 0;
             while(true) 
             {
-                int flag = ::send(_id, data_c, length-sent_size, MSG_DONTWAIT);
+                int flag = ::send(_id, data_c, length - sent_size, MSG_DONTWAIT);
                 if(flag < 0) 
                 {
-                    if(errno==EAGAIN || errno==EWOULDBLOCK) 
+                    if(errno == EAGAIN || errno == EWOULDBLOCK) 
                     {
                         break;
                     } 
-                    else if(errno==EINTR) 
+                    else if(errno == EINTR) 
                     {
                         continue;
                     } 
@@ -198,11 +222,6 @@ namespace jrNetWork {
                     sent_size += flag;
                 }
             }
-            /* Send failed, internal error, see errno */
-            if (sent_size == 0)
-            {
-                return false;
-            } 
             /* Part of it is sent, and the remainder is added to the buffer */
             if(sent_size < data.length()) 
             {
@@ -212,7 +231,7 @@ namespace jrNetWork {
         return true;
     }
 
-    bool TCP::Socket::is_send_all() const 
+    bool TCP::Socket::isSendAll() const 
     {
         return _sendBuffer.empty();
     }

@@ -43,7 +43,7 @@ namespace jrNetWork {
             /* Determine whether the data has been sent
              * (the return value is only meaningful for non-blocking mode)
              */
-            bool is_send_all() const;
+            bool isSendAll() const;
             /* Get current socket's ip address */
             std::string get_ip_from_socket() const;
         };

@@ -11,6 +11,7 @@ namespace jrNetWork
         LISTEN = 0X01,
         READ,
         WRITE,
+        ConnClosed,
         SIGNAL,
         Timeout
     };
@@ -28,5 +29,8 @@ namespace jrNetWork
 
         Event& operator=(const _NativeEvent& ne);
         Event& operator=(_NativeEvent&& ne);
+
+        bool operator==(const Event& rhs);
+        bool operator!=(const Event& rhs);
     };
 }
