@@ -81,11 +81,6 @@ namespace jrNetWork
 		return !(*this == rhs);
 	}
 
-	namespace Poll
-	{
-		
-	}
-
 	namespace Epoll
 	{
 		Multiplexer::Multiplexer()

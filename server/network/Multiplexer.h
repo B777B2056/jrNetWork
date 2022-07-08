@@ -17,7 +17,7 @@ namespace jrNetWork
 		int _waitEvN;
 		int _listenSock;
 		std::vector<_NativeEvent> _activateNativeEvents;
-		virtual void _changeEvent(const Event& event, int op);
+		virtual void _changeEvent(const Event& event, int op) = 0;
 
 	public:
 		using iterator = MultiplexerIterator;
@@ -56,23 +56,13 @@ namespace jrNetWork
 		bool operator!=(const MultiplexerIterator& rhs);
 	};
 
-	namespace Select
-	{
-
-	}
-
-	namespace Poll
-	{
-
-	}
-
     namespace Epoll
     {
 		class Multiplexer : public _MultiplexerBase
 		{
 		private:
 			int _epollfd;
-			void _changeEvent(const Event& event, int op) override;
+			void _changeEvent(const Event& ev, int op) override;
 
 		public:
 			Multiplexer();
@@ -81,8 +71,8 @@ namespace jrNetWork
 			iterator begin() override;
 			iterator end() override;
 
-			void registEvent(const Event& event) override;
-			void unregistEvent(const Event& event) override;
+			void registEvent(const Event& ev) override;
+			void unregistEvent(const Event& ev) override;
 			void wait(int timeoutMs = -1) override;
 		};
     }

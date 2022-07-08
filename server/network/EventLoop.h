@@ -13,82 +13,10 @@
 #include "Timer.h"
 #include "ThreadPool.h"
 #include "Log.h"
+#include "Ues.h"
 
 namespace jrNetWork
 {
-    namespace _UnifiedEventSource
-    {
-        static int _uesfd[2];
-
-        // Init ues
-        static void init()
-        {
-            if (-1 == ::socketpair(AF_UNIX, SOCK_STREAM, 0, _uesfd))
-            {
-                LOGFATAL() << "UES endpoint init failed: " << ::strerror(errno) << std::endl;
-            }
-            // Set ues fd write non-blocking
-            ::fcntl(_uesfd[1], F_SETFL, ::fcntl(_uesfd[1], F_GETFL) | O_NONBLOCK);
-        }
-
-        // Close fd
-        static void closeUes()
-        {
-            ::close(_uesfd[1]);
-            ::close(_uesfd[0]);
-        }
-
-        // Wrire signal to uesfd
-        static void signalTransfer(int sig)
-        {
-            LOGNOTICE() << "Catch signal, signal " << sig << std::endl;
-            ::write(_uesfd[1], reinterpret_cast<char*>(&sig), 1);
-        }
-        
-        // Bind signal
-        static void bindSignal(int sig)
-        {
-            struct sigaction act;
-            ::memset(&act, 0, sizeof(struct sigaction));
-            act.sa_handler = signalTransfer;
-            ::sigemptyset(&act.sa_mask);			
-            ::sigaddset(&act.sa_mask, sig);
-            act.sa_flags |= SA_RESTART;
-            if (-1 == ::sigaction(sig, &act, nullptr))
-            {
-                LOGFATAL() << "Signal redirect failed: " << ::strerror(errno) << std::endl;
-            }
-            else
-            {
-                LOGNOTICE() << "Signal redirect success, " << sig << std::endl;
-            }
-        }
-
-        static bool handleSignals(std::unordered_map<int, std::function<void()> >& sigHandlerTbl)
-        {
-            char sig[32];
-            bool isTimeout = false;
-            ::memset(sig, 0, sizeof(sig));
-            int num = ::read(_uesfd[0], sig, sizeof(sig));
-            if (num <= 0)
-            {
-                return false;
-            }
-            for (int i = 0; i < num; ++i) 
-            {
-                if (sig[i] == SIGALRM)
-                {
-                    isTimeout = true;
-                } 
-                else
-                {
-                    sigHandlerTbl[sig[i]]();
-                }
-            }
-            return isTimeout;
-        }
-    }
-
     template<class SocketType>
 	class EventLoop
 	{
@@ -101,6 +29,7 @@ namespace jrNetWork
         SocketType socket;
         std::unique_ptr<_MultiplexerBase> _multiplexer;
         std::unordered_map<int, CltPtrType> _idSocketTbl;
+        _UnifiedEventSource _ues;
         /* Event handlers */
         IOCallbackType _readEvHandler;
         IOCallbackType _writeEvHandler;
@@ -125,7 +54,6 @@ namespace jrNetWork
             ev.type = EventType::LISTEN;
             _multiplexer->registEvent(ev);
             /* Regist signal event */
-            _UnifiedEventSource::init();
             ev.id = _UnifiedEventSource::_uesfd[0];
             ev.type = EventType::SIGNAL;
             _multiplexer->registEvent(ev);
@@ -254,7 +182,8 @@ namespace jrNetWork
                 if (cltPtr)
                 {
                     handlerBinder(cltPtr);
-                }            };
+                }            
+            };
         }
 
     public:
@@ -270,7 +199,6 @@ namespace jrNetWork
         /* Release connection resources */
         ~EventLoop()
         {
-            _UnifiedEventSource::closeUes();
             socket.disconnect();
         }
 
@@ -278,13 +206,13 @@ namespace jrNetWork
         template<typename F, typename... Args>
         void setReadEventHandler(F&& handler, Args&&... args)
         {
-            _readEvHandler = _handlerSetHelper(std::forward<F>(handler), std::forward<Args>(args)...);
+            this->_readEvHandler = this->_handlerSetHelper(std::forward<F>(handler), std::forward<Args>(args)...);
         }
 
         template<typename F, typename... Args>
         void setWriteEventHandler(F&& handler, Args&&... args)
         {
-            _writeEvHandler = _handlerSetHelper(std::forward<F>(handler), std::forward<Args>(args)...);
+            this->_writeEvHandler = this->_handlerSetHelper(std::forward<F>(handler), std::forward<Args>(args)...);
         }
 
         template<typename F, typename... Args>
@@ -301,7 +229,7 @@ namespace jrNetWork
         template<typename F, typename... Args>
         void setTimeoutEventHandler(F&& handler, Args&&... args)
         {
-            _timeoutCallback = _handlerSetHelper(std::forward<F>(handler), std::forward<Args>(args)...);
+            this->_timeoutCallback = this->_handlerSetHelper(std::forward<F>(handler), std::forward<Args>(args)...);
         }
 
         /* Do Event Loop */
