@@ -14,5 +14,12 @@ int main() {
     {
         std::cout << e.what() << std::endl;
     }
+    std::future<std::vector<int> > res = client.asyncCall<std::vector<int> >("intSort", vec);
+    res.wait();
+    for (int n : res.get())
+    {
+        std::cout << n << " ";
+    }
+    std::cout << std::endl;
     return  0;
 }

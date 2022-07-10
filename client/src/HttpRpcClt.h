@@ -70,11 +70,12 @@ namespace jrRPC
         }
 
         template<typename Ret, typename... Args>
-        Ret asyncCall(const std::string& name, Args&&... args)
+        std::future<Ret> asyncCall(const std::string& name, Args&&... args)
         {
-            auto res = std::async(std::launch::async, &RPCClient::call, this, name, std::forward<Args>(args)...);
-            res.wait();
-            return res.get();
+            return std::async(std::launch::async, [this, name, &args...]()->Ret
+            {
+                return this->call<Ret>(name, std::forward<Args>(args)...);
+            });
         }
     };
 }
